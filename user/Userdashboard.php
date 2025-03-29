@@ -1,79 +1,326 @@
 <?php
+// Use a secure session configuration
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '',
+    'secure' => isset($_SERVER['HTTPS']),
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
 session_start();
-include 'db_connection.php';
+session_regenerate_id(true);
 
-// Check user authentication
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login/signin.php");
+// Redirect unauthorized access
+if (empty($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+    header("Location: ../login/login.php");
     exit();
 }
 
-// Get user data
-$user_id = $_SESSION['user_id'];
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$user_id]);
-$user = $stmt->fetch();
+include 'db_connection.php';
+
+// Verify database connection
+if (!$conn || $conn->connect_error) {
+    error_log("Database connection failed: " . $conn->connect_error);
+    header("Location: ../error.php");
+    exit();
+}
+
+// Sanitize and validate user ID
+$userId = filter_var($_SESSION['user_id'], FILTER_VALIDATE_INT);
+
+// Fetch user data securely
+$query = "SELECT username, email, role, ministry, status FROM users WHERE user_id = ?";
+$stmt = $conn->prepare($query);
+
+if (!$stmt) {
+    error_log("Database query error: " . $conn->error);
+    header("Location: ../error.php");
+    exit();
+}
+
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$stmt->store_result();
+
+// Verify user exists and is active
+if ($stmt->num_rows === 0) {
+    session_destroy();
+    header("Location: ../login/login.php?error=account_not_found");
+    exit();
+}
+
+$stmt->bind_result($username, $email, $role, $ministry, $status);
+$stmt->fetch();
+$stmt->close();
+
+// Check account status
+if ($status !== 'Active') {
+    session_destroy();
+    header("Location: ../login/login.php?error=account_inactive");
+    exit();
+}
+
+// Updated functions using mysqli consistently
+function getPendingRequestsCount($mysqli, $userId) {
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM requests WHERE user_id = ? AND status = 'Pending'");
+    if (!$stmt) {
+        error_log("Query preparation failed: " . $mysqli->error);
+        return 0;
+    }
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+    $stmt->close();
+    return $count;
+}
+
+function getBorrowedItemsCount($mysqli, $userId) {
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+    if (!$stmt) {
+        error_log("Query preparation failed: " . $mysqli->error);
+        return 0;
+    }
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+    $stmt->close();
+    return $count;
+}
+
+function getRecentTransactionsCount($mysqli, $userId) {
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM transactions WHERE user_id = ?");
+    if (!$stmt) {
+        error_log("Query preparation failed: " . $mysqli->error);
+        return 0;
+    }
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+    $stmt->close();
+    return $count;
+}
+
+// Add a function to get total items count
+function getTotalItemsCount($mysqli) {
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM items");
+    if (!$stmt) {
+        error_log("Query preparation failed: " . $mysqli->error);
+        return 0;
+    }
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+    $stmt->close();
+    return $count;
+}
+
+// Add a function to fetch user-specific notifications
+function getUserNotifications($mysqli, $userId) {
+    $stmt = $mysqli->prepare("SELECT notification_id, message, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 5");
+    if (!$stmt) {
+        error_log("Query preparation failed: " . $mysqli->error);
+        return [];
+    }
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $notifications = [];
+    while ($row = $result->fetch_assoc()) {
+        $notifications[] = $row;
+    }
+    $stmt->close();
+    return $notifications;
+}
+
+// Fetch additional data for the dashboard
+$totalItems = getTotalItemsCount($conn);
+$notifications = getUserNotifications($conn, $userId);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Dashboard - UCGS Inventory</title>
-    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/userdb.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-    <!-- Header -->
-    <?php include 'header.php'; ?>
+<header class="header">
+        <div class="header-content">
+            <div class="left-side">
+                <img src="../assets/img/Logo.png" alt="UCGS Inventory Logo" class="logo">
+                <span class="website-name">UCGS Inventory</span>
+            </div>
+            <div class="right-side">
+                <div class="user">
+                    <img src="../assets/img/users.png" alt="User profile" class="icon" id="userIcon">
+                    <span class="user-text"><?php echo htmlspecialchars($accountName); ?></span> <!-- Display logged-in user's username -->
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="userprofile.php"><img src="../assets/img/updateuser.png" alt="Profile" class="dropdown-icon"> Profile</a>
+                        <a href="usernotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+                        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout" class="dropdown-icon"> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-    <!-- Sidebar -->
-    <?php include 'sidebar.php'; ?>
-
-    <!-- Main Content -->
+    <aside class="sidebar">
+        <ul>
+            <li><a href="Userdashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
+            <li><a href="UserItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon"> Item Records</a></li>
+            <li class="dropdown">
+                <a href="#" class="dropdown-btn">
+                    <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
+                    <span class="text">Request Record</span>
+                    <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                </a>
+                <ul class="dropdown-content">
+                    <li><a href="UserItemRequests.php">New Item Request</a></li>
+                    <li><a href="UserItemBorrow.php">Borrow Item Request</a></li>
+                    <li><a href="UserItemReturned.php">Return Item Request</a></li></ul>
+            </li>
+            <li><a href="UserTransaction.php"><img src="../assets/img/time-management.png" alt="Reports Icon" class="sidebar-icon">Transaction Records</a></li>
+        </ul>
+    </aside>
     <div class="main-content">
         <!-- Dashboard Overview -->
         <div class="dashboard-overview">
             <div class="stats-card">
                 <h3>Pending Requests</h3>
-                <p><?= getPendingRequestsCount($pdo, $user_id) ?></p>
+                <p><?= htmlspecialchars(getPendingRequestsCount($conn, $userId)) ?></p>
             </div>
             <div class="stats-card">
                 <h3>Borrowed Items</h3>
-                <p><?= getBorrowedItemsCount($pdo, $user_id) ?></p>
+                <p><?= htmlspecialchars(getBorrowedItemsCount($conn, $userId)) ?></p>
             </div>
             <div class="stats-card">
                 <h3>Recent Transactions</h3>
-                <p><?= getRecentTransactionsCount($pdo, $user_id) ?></p>
+                <p><?= htmlspecialchars(getRecentTransactionsCount($conn, $userId)) ?></p>
+            </div>
+            <div class="stats-card">
+                <h3>Total Items</h3>
+                <p><?= htmlspecialchars($totalItems) ?></p>
             </div>
         </div>
 
-        <!-- Dynamic Content Section -->
-        <div id="content-container">
-            <!-- Default Content -->
-            <div class="content-section active" id="dashboard">
-                <h2>Welcome, <?= htmlspecialchars($user['first_name']) ?></h2>
-                <!-- Add dashboard widgets here -->
-            </div>
+        <!-- Notifications Section -->
+        <div class="notifications-section">
+            <h2>Recent Notifications</h2>
+            <ul class="notifications-list">
+                <?php foreach ($notifications as $notification): ?>
+                    <li>
+                        <p><?= htmlspecialchars($notification['message']) ?></p>
+                        <small><?= htmlspecialchars($notification['created_at']) ?></small>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
 
-            <!-- Request Forms -->
-            <div class="content-section" id="new-request">
-                <?php include 'forms/new_request.php'; ?>
-            </div>
+        <!-- Tables Section -->
+        <div class="tables-section">
+            <h2>Pending Requests</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Item Name</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $stmt = $conn->prepare("SELECT request_id, item_name, request_date, status FROM requests WHERE user_id = ? AND status = 'Pending'");
+                    $stmt->bind_param("i", $userId);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        echo "<tr>
+                                <td>" . htmlspecialchars($row['request_id']) . "</td>
+                                <td>" . htmlspecialchars($row['item_name']) . "</td>
+                                <td>" . htmlspecialchars($row['request_date']) . "</td>
+                                <td>" . htmlspecialchars($row['status']) . "</td>
+                              </tr>";
+                    }
+                    $stmt->close();
+                    ?>
+                </tbody>
+            </table>
 
-            <div class="content-section" id="borrowed-items">
-                <?php include 'tables/borrowed_items.php'; ?>
-            </div>
+            <h2>Borrowed Items</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Item ID</th>
+                        <th>Item Name</th>
+                        <th>Borrow Date</th>
+                        <th>Return Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $stmt = $conn->prepare("SELECT item_id, item_name, borrow_date, return_date FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+                    $stmt->bind_param("i", $userId);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        echo "<tr>
+                                <td>" . htmlspecialchars($row['item_id']) . "</td>
+                                <td>" . htmlspecialchars($row['item_name']) . "</td>
+                                <td>" . htmlspecialchars($row['borrow_date']) . "</td>
+                                <td>" . htmlspecialchars($row['return_date']) . "</td>
+                              </tr>";
+                    }
+                    $stmt->close();
+                    ?>
+                </tbody>
+            </table>
 
-            <div class="content-section" id="transaction-history">
-                <?php include 'tables/transactions.php'; ?>
-            </div>
+            <h2>Recent Transactions</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Details</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $stmt = $conn->prepare("SELECT transaction_id, details, date FROM transactions WHERE user_id = ?");
+                    $stmt->bind_param("i", $userId);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    while ($row = $result->fetch_assoc()) {
+                        echo "<tr>
+                                <td>" . htmlspecialchars($row['transaction_id']) . "</td>
+                                <td>" . htmlspecialchars($row['details']) . "</td>
+                                <td>" . htmlspecialchars($row['date']) . "</td>
+                              </tr>";
+                    }
+                    $stmt->close();
+                    ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Footer -->
-    <?php include 'footer.php'; ?>
+    <footer>
+        <p>&copy; <?= date('Y') ?> UCGS Inventory. All rights reserved.</p>
+    </footer>
 
-    <script src="../js/dashboard.js"></script>
+    <script src="../js/userecords.js"></script>
 </body>
 </html>
+
+<?php
+// Close database connection (moved to the end of the script)
+$conn->close();
+?>

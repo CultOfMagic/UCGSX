@@ -1,5 +1,87 @@
-<?php 
+<?php
 include 'db_connection.php';
+session_start();
+
+// Verify admin session
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+// Fetch currently logged-in admin details
+$currentAdminId = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $currentAdminId);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentAdmin = $result->fetch_assoc();
+$stmt->close();
+
+// Pass the current admin details to the frontend
+$accountName = $currentAdmin['username'] ?? 'User';
+$accountEmail = $currentAdmin['email'] ?? '';
+$accountRole = $_SESSION['role'];
+
+// Fetch item requests data
+$query = "SELECT r.request_id, u.username, r.item_name, r.item_category, r.request_date, r.quantity, r.status 
+          FROM new_item_requests r
+          JOIN users u ON r.user_id = u.user_id";
+$result = $conn->query($query);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    $requestId = intval($_POST['request_id'] ?? 0);
+
+    if ($action === 'approve') {
+        // Approve the request
+        $query = "SELECT item_name, item_category, quantity FROM new_item_requests WHERE request_id = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $requestId);
+        $stmt->execute();
+        $request = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($request) {
+            // Add the item to the items table
+            $insertItemQuery = "INSERT INTO items (item_name, item_category, quantity, status) VALUES (?, ?, ?, 'Available')";
+            $insertItemStmt = $conn->prepare($insertItemQuery);
+            $insertItemStmt->bind_param("ssi", $request['item_name'], $request['item_category'], $request['quantity']);
+            $insertItemStmt->execute();
+
+            // Retrieve the newly inserted item_id
+            $itemId = $conn->insert_id;
+            $insertItemStmt->close();
+
+            // Update the request status to "Approved" and set the item_id
+            $updateRequestQuery = "UPDATE new_item_requests SET status = 'Approved', item_id = ? WHERE request_id = ?";
+            $updateRequestStmt = $conn->prepare($updateRequestQuery);
+            $updateRequestStmt->bind_param("ii", $itemId, $requestId);
+            $updateRequestStmt->execute();
+            $updateRequestStmt->close();
+
+            echo json_encode(['success' => true, 'message' => 'Request approved and item added to inventory.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Request not found.']);
+        }
+    } elseif ($action === 'reject') {
+        // Reject the request
+        $reason = htmlspecialchars(trim($_POST['reason'] ?? ''));
+        if (empty($reason)) {
+            echo json_encode(['success' => false, 'message' => 'Rejection reason is required.']);
+            exit;
+        }
+
+        // Update the request status to "Rejected" with the reason
+        $updateRequestQuery = "UPDATE new_item_requests SET status = 'Rejected', notes = ? WHERE request_id = ?";
+        $updateRequestStmt = $conn->prepare($updateRequestQuery);
+        $updateRequestStmt->bind_param("si", $reason, $requestId);
+        $updateRequestStmt->execute();
+        $updateRequestStmt->close();
+
+        echo json_encode(['success' => true, 'message' => 'Request rejected with reason provided.']);
+    }
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -22,11 +104,11 @@ include 'db_connection.php';
             <div class="right-side">
             <div class="user">
     <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text">Admin</span>
+    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
     <div class="user-dropdown" id="userDropdown">
         <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
         <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
     </div>
 </div>
             </div>
@@ -87,13 +169,14 @@ include 'db_connection.php';
         </tr>
     </thead>
     <tbody>
-        <tr>
-            <td>Nica</td>
-            <td>Notebook</td>
-            <td>Stationery</td>
-            <td>2025-03-19</td>
-            <td>2</td>
-            <td>Pending</td>
+        <?php while ($row = $result->fetch_assoc()): ?>
+        <tr data-request-id="<?php echo $row['request_id']; ?>">
+            <td><?php echo htmlspecialchars($row['username']); ?></td>
+            <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+            <td><?php echo htmlspecialchars($row['item_category']); ?></td>
+            <td><?php echo htmlspecialchars($row['request_date']); ?></td>
+            <td><?php echo htmlspecialchars($row['quantity']); ?></td>
+            <td><?php echo htmlspecialchars($row['status']); ?></td>
             <td>
                 <div class="action-buttons">
                     <button class="approve-btn">Approve</button>
@@ -101,20 +184,7 @@ include 'db_connection.php';
                 </div>
             </td>
         </tr>
-        <tr>
-            <td>Patricia</td>
-            <td>Ballpen</td>
-            <td>Stationery</td>
-            <td>2025-03-19</td>
-            <td>5</td>
-            <td>For Approval</td>
-            <td>
-                <div class="action-buttons">
-                    <button class="approve-btn">Approve</button>
-                    <button class="reject-btn">Reject</button>
-                </div>
-            </td>
-        </tr>
+        <?php endwhile; ?>
     </tbody>
 </table>
 
@@ -142,10 +212,60 @@ include 'db_connection.php';
         </div>
     </div>
 </div>
-
-
-    
-
     <script src="../js/Itmreqs.js"></script>
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+    const approveButtons = document.querySelectorAll(".approve-btn");
+    const rejectButtons = document.querySelectorAll(".reject-btn");
+
+    approveButtons.forEach(button => {
+        button.addEventListener("click", function () {
+            const requestId = this.closest("tr").dataset.requestId;
+
+            fetch("handleRequest.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `action=approve&request_id=${requestId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            });
+        });
+    });
+
+    rejectButtons.forEach(button => {
+        button.addEventListener("click", function () {
+            const requestId = this.closest("tr").dataset.requestId;
+            const reason = prompt("Enter rejection reason:");
+
+            if (!reason) {
+                alert("Rejection reason is required.");
+                return;
+            }
+
+            fetch("handleRequest.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `action=reject&request_id=${requestId}&reason=${encodeURIComponent(reason)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            });
+        });
+    });
+});
+</script>
 </body>
 </html>

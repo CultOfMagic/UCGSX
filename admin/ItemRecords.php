@@ -1,6 +1,44 @@
-<?php 
+<?php
+session_start();
 include 'db_connection.php';
 
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+// Fetch currently logged-in admin details
+$currentAdminId = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $currentAdminId);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentAdmin = $result->fetch_assoc();
+$stmt->close();
+
+// Pass the current admin details to the frontend
+$accountName = $currentAdmin['username'] ?? 'User';
+$accountEmail = $currentAdmin['email'] ?? '';
+
+// Ensure $query is defined with a valid SQL statement
+$query = "SELECT * FROM items"; // Replace 'items' with the correct table name if needed
+
+// Execute the query
+$result = $conn->query($query);
+
+// Check for errors in query execution
+if (!$result) {
+    die("Query failed: " . $conn->error);
+}
+
+$loggedInUser = getLoggedInUser($conn);
+if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+$accountName = $loggedInUser['username'];
+$accountRole = $loggedInUser['role'];
 ?>
 
 <!DOCTYPE html>
@@ -23,11 +61,11 @@ include 'db_connection.php';
             <div class="right-side">
             <div class="user">
     <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text">Admin</span>
+    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
     <div class="user-dropdown" id="userDropdown">
         <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
         <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
     </div>
 </div>
             </div>
@@ -85,7 +123,7 @@ include 'db_connection.php';
         <table class="item-table">
             <thead>
                 <tr>
-                    <th>Select</th>
+                    <th>Select All <input type="checkbox" class="select-all"></th>
                     <th>Item No</th>
                     <th>Item Name</th>
                     <th>Description</th>
@@ -100,193 +138,31 @@ include 'db_connection.php';
                 </tr>
             </thead>
             <tbody id="item-table-body">
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>001</td>
-                    <td>Sample Item 1</td>
-                    <td>Example description</td>
-                    <td>10</td>
-                    <td>pcs</td>
-                    <td>Available</td>
-                    <td>2025-03-18</td>
-                    <td>Model X</td>
-                    <td>Electronics</td>
-                    <td>Warehouse A</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>002</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>003</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>004</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>005</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>006</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>007</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>008</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>009</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>010</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td><input type="checkbox" class="select-item"></td>
-                    <td>011</td>
-                    <td>Sample Item 2</td>
-                    <td>Another example</td>
-                    <td>5</td>
-                    <td>kg</td>
-                    <td>Out of Stock</td>
-                    <td>2025-02-15</td>
-                    <td>Model Y</td>
-                    <td>Appliances</td>
-                    <td>Warehouse B</td>
-                    <td>
-                        <button type="button" class="update-btn" onclick="updateRow(this)"style = "font-family:'Akrobat', sans-serif;">Update</button>
-                        <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
-                    </td>
-                </tr>
+                <?php if ($result->num_rows > 0): ?>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><input type="checkbox" class="select-item"></td>
+                            <td><?= htmlspecialchars($row['item_no']) ?></td>
+                            <td><?= htmlspecialchars($row['item_name']) ?></td>
+                            <td><?= htmlspecialchars($row['description']) ?></td>
+                            <td><?= htmlspecialchars($row['quantity']) ?></td>
+                            <td><?= htmlspecialchars($row['unit']) ?></td>
+                            <td><?= htmlspecialchars($row['status']) ?></td>
+                            <td><?= htmlspecialchars($row['last_updated']) ?></td>
+                            <td><?= htmlspecialchars($row['model_no']) ?></td>
+                            <td><?= htmlspecialchars($row['item_category']) ?></td>
+                            <td><?= htmlspecialchars($row['item_location']) ?></td>
+                            <td>
+                                <button type="button" class="update-btn" onclick="openUpdateModal(this)">Update</button>
+                                <button type="button" class="delete-btn" onclick="openDeleteModal(this)">Delete</button>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="12">No records found.</td>
+                    </tr>
+                <?php endif; ?>
             </tbody>
         </table>
     </form>
@@ -308,8 +184,35 @@ include 'db_connection.php';
     </div>
 </div>
 
-
+<!-- Update Modal -->
+<div id="updateModal" class="modal">
+    <div class="modal-content">
+        <h2>Update Item</h2>
+        <form id="update-form">
+            <input type="hidden" id="update-item-no"> <!-- Hidden input for item_no -->
+            <label for="update-item-name">Item Name</label>
+            <input type="text" id="update-item-name" required>
+            <label for="update-description">Description</label>
+            <textarea id="update-description" required></textarea>
+            <label for="update-quantity">Quantity</label>
+            <input type="number" id="update-quantity" required>
+            <label for="update-unit">Unit</label>
+            <input type="text" id="update-unit" required>
+            <label for="update-status">Status</label>
+            <input type="text" id="update-status" required>
+            <label for="update-model-no">Model No</label>
+            <input type="text" id="update-model-no" required>
+            <label for="update-item-category">Item Category</label>
+            <input type="text" id="update-item-category" required>
+            <label for="update-item-location">Item Location</label>
+            <input type="text" id="update-item-location" required>
+            <button type="submit">Save</button>
+            <button type="button" id="cancelUpdate">Cancel</button>
+        </form>
+    </div>
+</div>
 
     <script src="../js/records.js"></script>
+
 </body>
 </html>

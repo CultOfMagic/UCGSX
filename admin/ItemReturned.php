@@ -1,5 +1,30 @@
-<?php 
+<?php
 include 'db_connection.php';
+session_start();
+
+// Verify admin session
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+// Fetch currently logged-in admin details
+$currentAdminId = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, email, role FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $currentAdminId);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentAdmin = $result->fetch_assoc();
+$stmt->close();
+
+// Pass the current admin details to the frontend
+$accountName = $currentAdmin['username'] ?? 'User';
+$accountEmail = $currentAdmin['email'] ?? '';
+$accountRole = $currentAdmin['role'] ?? '';
+
+// Fetch returned items data
+$query = "SELECT * FROM returned_items";
+$result = $conn->query($query);
 ?>
 
 
@@ -23,11 +48,11 @@ include 'db_connection.php';
             <div class="right-side">
             <div class="user">
     <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text">Admin</span>
+    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
     <div class="user-dropdown" id="userDropdown">
         <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
         <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
     </div>
 </div>
             </div>

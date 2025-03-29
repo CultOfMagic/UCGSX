@@ -1,17 +1,24 @@
 <?php
-$servername = "localhost"; 
-$username = "root"; 
-$password = ""; 
-$dbname = "ucgs"; 
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "ucgs";
 
-// Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
 
-// Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
-// echo "Connected successfully";
 
-// No need to close the connection right here if you're still using it later in the script
+function getLoggedInUser($conn) {
+    if (!isset($_SESSION['user_id'])) {
+        return null;
+    }
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT user_id, username, role FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result->fetch_assoc();
+}
 ?>

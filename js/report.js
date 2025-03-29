@@ -44,7 +44,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-
 // download modal for pdf and xlxs
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".download-icon").forEach(icon => {
@@ -72,9 +71,8 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-
 // Pagination For Button and limit table to proceed to next page
-const rowsPerPage = 10; // change the number if you want to show only 5 row per
+const rowsPerPage = 10; // change the number if you want to show only 5 rows per page
 let currentPage = 1;
 let totalPages = 1;
 
@@ -117,4 +115,37 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Initialize Pagination
     showPage(currentPage);
+});
+
+// check box show if there is a data
+document.addEventListener("DOMContentLoaded", function () {
+    const tableBody = document.querySelector(".report-table tbody");
+    
+    function checkData() {
+        const rows = tableBody.querySelectorAll("tr");
+        let hasData = false;
+
+        rows.forEach(row => {
+            // Ignore the "No data available" row
+            if (!row.classList.contains("no-data")) {
+                hasData = true;
+                const checkbox = row.querySelector(".select-checkbox");
+                if (checkbox) {
+                    checkbox.style.display = "inline-block"; // Show checkbox when data is available
+                }
+            }
+        });
+
+        // If no data, show the "No data available" message
+        if (!hasData) {
+            tableBody.innerHTML = `
+                <tr class="no-data">
+                    <td colspan="16" style="text-align:center; padding: 10px;">No data available</td>
+                </tr>
+            `;
+        }
+    }
+
+    // Run the check function on page load
+    checkData();
 });

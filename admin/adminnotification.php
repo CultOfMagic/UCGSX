@@ -1,48 +1,168 @@
 <?php
-session_start();
 include 'db_connection.php';
+session_start();
 
-// Check authentication
-if (!isset($_SESSION['admin_logged_in'])) {
-    header('Location: admin_login.php');
-    exit;
+// Verify admin session
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
 }
 
-// CSRF Token Generation
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+// Get logged-in user details
+$loggedInUser = getLoggedInUser($conn);
+if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
 }
 
-// Pagination
-$limit = 10;
+$accountName = $loggedInUser['username'];
+$accountRole = $loggedInUser['role'];
+$loggedInUserId = $loggedInUser['user_id']; // Get the logged-in user's ID
+
+// Handle form submission for new item requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_new_item_request'])) {
+    $itemId = intval($_POST['item_id']);
+    $quantity = intval($_POST['quantity']);
+    $purpose = trim($_POST['purpose']);
+    $notes = trim($_POST['notes']);
+
+    // Validate input
+    if ($itemId > 0 && $quantity > 0 && !empty($purpose)) {
+        $stmt = $conn->prepare("INSERT INTO new_item_requests (user_id, item_id, quantity, purpose, notes) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("iiiss", $loggedInUserId, $itemId, $quantity, $purpose, $notes);
+
+        if ($stmt->execute()) {
+            $_SESSION['success_message'] = "New item request submitted successfully.";
+        } else {
+            $_SESSION['error_message'] = "Failed to submit the request. Please try again.";
+        }
+
+        $stmt->close();
+    } else {
+        $_SESSION['error_message'] = "Invalid input. Please fill out all required fields.";
+    }
+
+    header("Location: adminnotification.php");
+    exit();
+}
+
+// Handle form submission for borrow requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_borrow_request'])) {
+    $itemId = intval($_POST['item_id']);
+    $quantity = intval($_POST['quantity']);
+    $dateNeeded = $_POST['date_needed'];
+    $returnDate = $_POST['return_date'];
+    $purpose = trim($_POST['purpose']);
+    $notes = trim($_POST['notes']);
+
+    // Validate input
+    if ($itemId > 0 && $quantity > 0 && !empty($dateNeeded) && !empty($returnDate) && !empty($purpose)) {
+        $stmt = $conn->prepare("INSERT INTO borrow_requests (user_id, item_id, quantity, date_needed, return_date, purpose, notes) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("iiissss", $loggedInUserId, $itemId, $quantity, $dateNeeded, $returnDate, $purpose, $notes);
+
+        if ($stmt->execute()) {
+            $_SESSION['success_message'] = "Borrow request submitted successfully.";
+        } else {
+            $_SESSION['error_message'] = "Failed to submit the request. Please try again.";
+        }
+
+        $stmt->close();
+    } else {
+        $_SESSION['error_message'] = "Invalid input. Please fill out all required fields.";
+    }
+
+    header("Location: adminnotification.php");
+    exit();
+}
+
+// Handle form submission for return requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_return_request'])) {
+    $borrowId = intval($_POST['borrow_id']);
+    $returnDate = $_POST['return_date'];
+    $itemCondition = $_POST['item_condition'];
+    $notes = trim($_POST['notes']);
+
+    // Validate input
+    if ($borrowId > 0 && !empty($returnDate) && !empty($itemCondition)) {
+        $stmt = $conn->prepare("INSERT INTO return_requests (borrow_id, return_date, item_condition, notes) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("isss", $borrowId, $returnDate, $itemCondition, $notes);
+
+        if ($stmt->execute()) {
+            $_SESSION['success_message'] = "Return request submitted successfully.";
+        } else {
+            $_SESSION['error_message'] = "Failed to submit the request. Please try again.";
+        }
+
+        $stmt->close();
+    } else {
+        $_SESSION['error_message'] = "Invalid input. Please fill out all required fields.";
+    }
+
+    header("Location: adminnotification.php");
+    exit();
+}
+
+// Fetch user requests from the new_item_requests table
+$newItemRequestsQuery = "SELECT r.request_id, r.quantity, r.purpose, r.notes, r.status, r.request_date, 
+                                u.username, i.item_name 
+                         FROM new_item_requests r
+                         JOIN users u ON r.user_id = u.user_id
+                         JOIN items i ON r.item_id = i.item_id
+                         ORDER BY r.request_date DESC";
+$newItemRequestsResult = $conn->query($newItemRequestsQuery);
+
+$newItemRequests = [];
+if ($newItemRequestsResult && $newItemRequestsResult->num_rows > 0) {
+    while ($row = $newItemRequestsResult->fetch_assoc()) {
+        $newItemRequests[] = $row;
+    }
+}
+
+// Fetch borrow requests from the borrow_requests table
+$borrowRequestsQuery = "SELECT b.borrow_id, b.quantity, b.date_needed, b.return_date, b.purpose, b.notes, b.status, b.request_date, 
+                               u.username, i.item_name 
+                        FROM borrow_requests b
+                        JOIN users u ON b.user_id = u.user_id
+                        JOIN items i ON b.item_id = i.item_id
+                        ORDER BY b.request_date DESC";
+$borrowRequestsResult = $conn->query($borrowRequestsQuery);
+
+$borrowRequests = [];
+if ($borrowRequestsResult && $borrowRequestsResult->num_rows > 0) {
+    while ($row = $borrowRequestsResult->fetch_assoc()) {
+        $borrowRequests[] = $row;
+    }
+}
+
+// Fetch return requests from the return_requests table
+$returnRequestsQuery = "SELECT r.return_id, r.return_date, r.item_condition, r.notes, r.status, r.created_at, 
+                               b.borrow_id, u.username, i.item_name 
+                        FROM return_requests r
+                        JOIN borrow_requests b ON r.borrow_id = b.borrow_id
+                        JOIN users u ON b.user_id = u.user_id
+                        JOIN items i ON b.item_id = i.item_id
+                        ORDER BY r.created_at DESC";
+$returnRequestsResult = $conn->query($returnRequestsQuery);
+
+$returnRequests = [];
+if ($returnRequestsResult && $returnRequestsResult->num_rows > 0) {
+    while ($row = $returnRequestsResult->fetch_assoc()) {
+        $returnRequests[] = $row;
+    }
+}
+
+// Combine all requests for display
+$allRequests = [
+    'new_item_requests' => $newItemRequests,
+    'borrow_requests' => $borrowRequests,
+    'return_requests' => $returnRequests
+];
+
+// Pagination variables
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$offset = ($page - 1) * $limit;
+$limit = 10;
+$totalNotifications = count($requests);
 
-try {
-    // Fetch notifications
-    $stmt = $pdo->prepare("
-        SELECT n.* 
-        FROM notifications n
-        WHERE n.user_id = :user_id
-        ORDER BY n.created_at DESC
-        LIMIT :limit OFFSET :offset
-    ");
-    $stmt->execute([
-        ':user_id' => $_SESSION['user_id'],
-        ':limit' => $limit,
-        ':offset' => $offset
-    ]);
-    $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Get total count for pagination
-    $totalStmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = :user_id");
-    $totalStmt->execute([':user_id' => $_SESSION['user_id']]);
-    $totalNotifications = $totalStmt->fetchColumn();
-} catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage());
-    $notifications = [];
-    $totalNotifications = 0;
-}
 ?>
 
 <!DOCTYPE html>
@@ -79,15 +199,15 @@ try {
                 <span class="website-name">UCGS Inventory</span>
             </div>
             <div class="right-side">
-            <div class="user">
-    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text">Admin</span>
-    <div class="user-dropdown" id="userDropdown">
-        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
-        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
-    </div>
-</div>
+                <div class="user">
+                    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
+                    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
+                        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+                        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -139,50 +259,117 @@ try {
         </div>
         
         <div class="notification-list">
-            <?php if(count($notifications) > 0): ?>
-                <?php foreach($notifications as $notification): ?>
-                    <div class="notification-item <?= $notification['is_read'] ? 'read' : 'unread' ?>" 
-                         data-notification-id="<?= $notification['id'] ?>">
+            <?php if (!empty($allRequests)): ?>
+                <!-- New Item Requests -->
+                <h3>New Item Requests</h3>
+                <?php foreach ($allRequests['new_item_requests'] as $request): ?>
+                    <div class="notification-item <?= $request['status'] === 'Pending' ? 'unread' : 'read' ?>" 
+                         data-request-id="<?= $request['request_id'] ?>">
                         <div class="notification-content">
                             <span class="notification-icon">
-                                <i class="fa-solid <?= getNotificationIcon($notification['type']) ?>"></i>
+                                <i class="fa-solid fa-box"></i>
                             </span>
                             <div class="notification-text">
-                                <p><?= htmlspecialchars($notification['message']) ?></p>
+                                <p><strong>User:</strong> <?= htmlspecialchars($request['username']) ?></p>
+                                <p><strong>Item:</strong> <?= htmlspecialchars($request['item_name']) ?></p>
+                                <p><strong>Quantity:</strong> <?= htmlspecialchars($request['quantity']) ?></p>
+                                <p><strong>Purpose:</strong> <?= htmlspecialchars($request['purpose']) ?></p>
+                                <p><strong>Notes:</strong> <?= htmlspecialchars($request['notes'] ?? 'N/A') ?></p>
                                 <span class="notification-date">
-                                    <?= date('M j, Y g:i A', strtotime($notification['created_at'])) ?>
+                                    <?= date('M j, Y g:i A', strtotime($request['request_date'])) ?>
                                 </span>
                             </div>
                         </div>
                         <div class="notification-actions">
-                            <?php if(!$notification['is_read']): ?>
-                                <button class="btn mark-read" onclick="handleMarkRead(this)">
-                                    <span class="button-text">Mark as Read</span>
+                            <?php if ($request['status'] === 'Pending'): ?>
+                                <button class="btn approve-request" onclick="handleApproveRequest(this)">
+                                    <span class="button-text">Approve</span>
+                                    <div class="loading" style="display: none;"></div>
+                                </button>
+                                <button class="btn reject-request" onclick="handleRejectRequest(this)">
+                                    <span class="button-text">Reject</span>
                                     <div class="loading" style="display: none;"></div>
                                 </button>
                             <?php endif; ?>
-                            <button class="btn delete-notification" onclick="handleDeleteNotification(this)">
-                                <i class="fa-solid fa-trash"></i>
-                                <div class="loading" style="display: none;"></div>
-                            </button>
                         </div>
                     </div>
                 <?php endforeach; ?>
-                
-                <!-- Pagination -->
-                <div class="pagination">
-                    <?php if($page > 1): ?>
-                        <a href="?page=<?= $page - 1 ?>" class="btn">Previous</a>
-                    <?php endif; ?>
-                    
-                    <?php if(($page * $limit) < $totalNotifications): ?>
-                        <a href="?page=<?= $page + 1 ?>" class="btn">Next</a>
-                    <?php endif; ?>
-                </div>
+
+                <!-- Borrow Requests -->
+                <h3>Borrow Requests</h3>
+                <?php foreach ($allRequests['borrow_requests'] as $request): ?>
+                    <div class="notification-item <?= $request['status'] === 'Pending' ? 'unread' : 'read' ?>" 
+                         data-borrow-id="<?= $request['borrow_id'] ?>">
+                        <div class="notification-content">
+                            <span class="notification-icon">
+                                <i class="fa-solid fa-hand-holding"></i>
+                            </span>
+                            <div class="notification-text">
+                                <p><strong>User:</strong> <?= htmlspecialchars($request['username']) ?></p>
+                                <p><strong>Item:</strong> <?= htmlspecialchars($request['item_name']) ?></p>
+                                <p><strong>Quantity:</strong> <?= htmlspecialchars($request['quantity']) ?></p>
+                                <p><strong>Date Needed:</strong> <?= htmlspecialchars($request['date_needed']) ?></p>
+                                <p><strong>Return Date:</strong> <?= htmlspecialchars($request['return_date']) ?></p>
+                                <p><strong>Purpose:</strong> <?= htmlspecialchars($request['purpose']) ?></p>
+                                <p><strong>Notes:</strong> <?= htmlspecialchars($request['notes'] ?? 'N/A') ?></p>
+                                <span class="notification-date">
+                                    <?= date('M j, Y g:i A', strtotime($request['request_date'])) ?>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="notification-actions">
+                            <?php if ($request['status'] === 'Pending'): ?>
+                                <button class="btn approve-request" onclick="handleApproveBorrowRequest(this)">
+                                    <span class="button-text">Approve</span>
+                                    <div class="loading" style="display: none;"></div>
+                                </button>
+                                <button class="btn reject-request" onclick="handleRejectBorrowRequest(this)">
+                                    <span class="button-text">Reject</span>
+                                    <div class="loading" style="display: none;"></div>
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
+                <!-- Return Requests -->
+                <h3>Return Requests</h3>
+                <?php foreach ($allRequests['return_requests'] as $request): ?>
+                    <div class="notification-item <?= $request['status'] === 'Pending' ? 'unread' : 'read' ?>" 
+                         data-return-id="<?= $request['return_id'] ?>">
+                        <div class="notification-content">
+                            <span class="notification-icon">
+                                <i class="fa-solid fa-undo"></i>
+                            </span>
+                            <div class="notification-text">
+                                <p><strong>User:</strong> <?= htmlspecialchars($request['username']) ?></p>
+                                <p><strong>Item:</strong> <?= htmlspecialchars($request['item_name']) ?></p>
+                                <p><strong>Return Date:</strong> <?= htmlspecialchars($request['return_date']) ?></p>
+                                <p><strong>Condition:</strong> <?= htmlspecialchars($request['item_condition']) ?></p>
+                                <p><strong>Notes:</strong> <?= htmlspecialchars($request['notes'] ?? 'N/A') ?></p>
+                                <span class="notification-date">
+                                    <?= date('M j, Y g:i A', strtotime($request['created_at'])) ?>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="notification-actions">
+                            <?php if ($request['status'] === 'Pending'): ?>
+                                <button class="btn approve-request" onclick="handleApproveReturnRequest(this)">
+                                    <span class="button-text">Approve</span>
+                                    <div class="loading" style="display: none;"></div>
+                                </button>
+                                <button class="btn reject-request" onclick="handleRejectReturnRequest(this)">
+                                    <span class="button-text">Reject</span>
+                                    <div class="loading" style="display: none;"></div>
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             <?php else: ?>
                 <div class="no-notifications">
                     <i class="fa-regular fa-bell-slash"></i>
-                    <p>No notifications found</p>
+                    <p>No requests found</p>
                 </div>
             <?php endif; ?>
         </div>
@@ -272,6 +459,48 @@ try {
             if (confirm('Permanently delete all notifications?')) {
                 const button = document.querySelector('.delete-all');
                 handleNotificationAction(button, 'api/delete_all_notifications.php');
+            }
+        }
+
+        async function handleApproveRequest(button) {
+            const requestId = button.closest('.notification-item').dataset.requestId;
+            if (confirm('Approve this request?')) {
+                handleNotificationAction(button, 'api/approve_request.php', requestId);
+            }
+        }
+
+        async function handleRejectRequest(button) {
+            const requestId = button.closest('.notification-item').dataset.requestId;
+            if (confirm('Reject this request?')) {
+                handleNotificationAction(button, 'api/reject_request.php', requestId);
+            }
+        }
+
+        async function handleApproveBorrowRequest(button) {
+            const borrowId = button.closest('.notification-item').dataset.borrowId;
+            if (confirm('Approve this borrow request?')) {
+                handleNotificationAction(button, 'api/approve_borrow_request.php', borrowId);
+            }
+        }
+
+        async function handleRejectBorrowRequest(button) {
+            const borrowId = button.closest('.notification-item').dataset.borrowId;
+            if (confirm('Reject this borrow request?')) {
+                handleNotificationAction(button, 'api/reject_borrow_request.php', borrowId);
+            }
+        }
+
+        async function handleApproveReturnRequest(button) {
+            const returnId = button.closest('.notification-item').dataset.returnId;
+            if (confirm('Approve this return request?')) {
+                handleNotificationAction(button, 'api/approve_return_request.php', returnId);
+            }
+        }
+
+        async function handleRejectReturnRequest(button) {
+            const returnId = button.closest('.notification-item').dataset.returnId;
+            if (confirm('Reject this return request?')) {
+                handleNotificationAction(button, 'api/reject_return_request.php', returnId);
             }
         }
     </script>

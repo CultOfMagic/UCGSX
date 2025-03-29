@@ -1,9 +1,40 @@
-<?php 
+<?php
 include 'db_connection.php';
-// this is comment
+session_start();
 
-// Fetch inventory data
-$query = "SELECT * FROM inventory"; // Replace 'inventory' with your actual table name
+// Verify admin session
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+// Fetch currently logged-in admin details
+$currentAdminId = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, email, role FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $currentAdminId);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentAdmin = $result->fetch_assoc();
+$stmt->close();
+
+// Pass the current admin details to the frontend
+$accountName = $currentAdmin['username'] ?? 'User';
+$accountEmail = $currentAdmin['email'] ?? '';
+$accountRole = $currentAdmin['role'] ?? '';
+
+// Pagination logic
+$limit = 10; // Number of rows per page
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $limit;
+
+// Fetch total number of rows
+$totalQuery = "SELECT COUNT(*) AS total FROM items";
+$totalResult = $conn->query($totalQuery);
+$totalRows = $totalResult->fetch_assoc()['total'];
+$totalPages = ceil($totalRows / $limit);
+
+// Fetch limited rows for the current page
+$query = "SELECT * FROM items LIMIT $limit OFFSET $offset";
 $result = $conn->query($query);
 ?>
 
@@ -27,11 +58,11 @@ $result = $conn->query($query);
             <div class="right-side">
             <div class="user">
     <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text">Admin</span>
+    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
     <div class="user-dropdown" id="userDropdown">
-        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
-        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+        <a href="../adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
+        <a href="../adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
     </div>
 </div>
             </div>
@@ -78,71 +109,45 @@ $result = $conn->query($query);
     <table class="inventory-table">
         <thead>
             <tr>
-                <th>Item No</th>
-                <th>Last Updated</th>
-                <th>Model No</th>
+                <th>Item ID</th>
                 <th>Item Name</th>
                 <th>Description</th>
-                <th>Item Category</th>
-                <th>Item Location</th>
-                <th>Expiration</th>
-                <th>Brand</th>
-                <th>Supplier</th>
-                <th>Price Per Item</th>
+                <th>Category</th>
+                <th>Location</th>
                 <th>Quantity</th>
                 <th>Unit</th>
                 <th>Status</th>
-                <th>Reorder Point</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             <?php if ($result->num_rows > 0): ?>
                 <?php while ($row = $result->fetch_assoc()): ?>
                     <tr>
-                        <td><?php echo $row['item_no']; ?></td>
-                        <td><?php echo $row['last_updated']; ?></td>
-                        <td><?php echo $row['model_no']; ?></td>
+                        <td><?php echo $row['item_id']; ?></td>
                         <td><?php echo $row['item_name']; ?></td>
                         <td><?php echo $row['description']; ?></td>
-                        <td><?php echo $row['item_category']; ?></td>
-                        <td><?php echo $row['item_location']; ?></td>
-                        <td><?php echo $row['expiration']; ?></td>
-                        <td><?php echo $row['brand']; ?></td>
-                        <td><?php echo $row['supplier']; ?></td>
-                        <td><?php echo $row['price_per_item']; ?></td>
+                        <td><?php echo $row['category']; ?></td>
+                        <td><?php echo $row['location']; ?></td>
                         <td><?php echo $row['quantity']; ?></td>
                         <td><?php echo $row['unit']; ?></td>
                         <td><?php echo $row['status']; ?></td>
-                        <td><?php echo $row['reorder_point']; ?></td>
-                        <td>
-                            <button onclick="editItem(<?php echo $row['item_no']; ?>)">Edit</button>
-                            <button onclick="deleteItem(<?php echo $row['item_no']; ?>)">Delete</button>
-                        </td>
                     </tr>
                 <?php endwhile; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="16">No items found.</td>
+                    <td colspan="8">No items found.</td>
                 </tr>
             <?php endif; ?>
         </tbody>
     </table>
     <div class="pagination">
-        <button onclick="prevPage()" id="prev-btn" style="font-family:'Akrobat', sans-serif;">Previous</button>
-        <span id="page-number" style="font-family:'Akrobat', sans-serif;">Page 1</span>
-        <button onclick="nextPage()" id="next-btn" style="font-family:'Akrobat', sans-serif;">Next</button>
-    </div>
-</div>
-
-<!-- For delete modal -->
-<div id="deleteModal" class="modal">
-    <div class="modal-content">
-        <p>Are you sure you want to delete this item?</p>
-        <div class="modal-buttons">
-            <button id="confirmDelete" class="delete-btn">Yes</button>
-            <button id="cancelDelete" class="cancel-btn">Cancel</button>
-        </div>
+        <?php if ($page > 1): ?>
+            <a href="?page=<?php echo $page - 1; ?>" id="prev-btn" style="font-family:'Akrobat', sans-serif;">Previous</a>
+        <?php endif; ?>
+        <span id="page-number" style="font-family:'Akrobat', sans-serif;">Page <?php echo $page; ?> of <?php echo $totalPages; ?></span>
+        <?php if ($page < $totalPages): ?>
+            <a href="?page=<?php echo $page + 1; ?>" id="next-btn" style="font-family:'Akrobat', sans-serif;">Next</a>
+        <?php endif; ?>
     </div>
 </div>
 

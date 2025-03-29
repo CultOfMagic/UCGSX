@@ -256,6 +256,12 @@ body {
 }
 
 /* USER DROPDOWN */
+/* USER DROPDOWN */
+.user {
+    position: relative;
+    cursor: pointer;
+}
+
 .user {
     position: relative;
     cursor: pointer;
@@ -335,97 +341,236 @@ body {
     border-bottom: 1px solid #eee;
 }
 
-
-/* Dropdown Styling */
-.report-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.report-table th, .report-table td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: center;
-}
-
-.download-dropdown {
-    position: relative;
-    display: inline-block;
-}
-
-.download-icon {
-    cursor: pointer;
-    font-size: 18px;
-    padding: 8px;
-    background: #006400;
-    color: white;
-    border-radius: 5px;
-}
-
-/* MODAL: Position fixed to avoid table clipping */
-.download-dropdown-content {
-    display: none;
-    position: fixed; /* Ensures it appears outside the table */
-    background-color: white;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-    border-radius: 5px;
-    overflow: hidden;
-    z-index: 1000;
-    transform: translateX(-20px); /* Moves the dropdown 20px left */
-}
-
-
-.download-dropdown-content a {
+/* Filter Container */
+.filter-container {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: black;
+    justify-content: space-between; /* Pushes inputs left, button right */
+    gap: 20px;
+    margin-bottom: 15px;
+    background: #f9f9f9;
     padding: 10px;
-    text-decoration: none;
+    border-radius: 8px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Group search bar and date */
+.filter-inputs {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Adds space between search bar and date */
+}
+
+/* Search Bar */
+#search-box {
+    width: 250px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+/* Style date input */
+.date-filter {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.date-filter label {
     font-size: 14px;
-    transition: background 0.3s;
+    font-weight: bold;
 }
 
-.download-dropdown-content a:hover {
-    background-color: #f1f1f1;
+.filter-container input[type="date"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
 }
 
+/* Create Account Button */
+#create-account-btn {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+}
 
-/* Table styling */
-   .report-table {
+#create-account-btn:hover {
+    background-color: #218838;
+}
+
+/* Table Container */
+.user-table {
     width: 100%;
-    background-color: #fff;
     border-collapse: collapse;
-    margin-top: 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
     border-radius: 8px;
     overflow: hidden;
+    border: 1px solid #ccc;
 }
 
 /* Table Header */
-.report-table thead th {
+.user-table thead {
     background-color: #006400;
     color: white;
+}
+
+.user-table thead th {
+    padding: 10px;
     font-weight: bold;
-    font-size: 14px;
-    padding: 8px;
     text-align: center;
 }
-/* Table Body */
-.report-table tbody tr:nth-child(even) {
+
+/* Round only top-left and top-right corners of first and last header */
+.user-table thead th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.user-table thead th:last-child {
+    border-top-right-radius: 8px;
+}
+
+/* Table Cells */
+.user-table th, .user-table td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+/* Alternating Row Colors */
+.user-table tbody tr:nth-child(even) {
     background-color: #f9f9f9;
 }
-.report-table tbody tr:hover {
-    background: rgba(0, 100, 0, 0.1);
+
+.user-table tbody tr:hover {
+    background-color: rgba(0, 100, 0, 0.1);
+    transition: 0.2s ease-in-out;
 }
-.report-table th, .report-table td {
-    padding: 8px;
-    border: 1px solid #ddd;
+
+/* Round only bottom-left and bottom-right corners of the last row */
+.user-table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: 8px;
+}
+
+.user-table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 8px;
+}
+
+
+
+/* Modern Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    inset: 0; /* Shortcut for top, right, bottom, left */
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s ease-in-out;
+    padding: 20px;
+}
+
+/* Modal Content */
+.modal-content {
+    background: linear-gradient(135deg, #ffffff, #f0f0f0);
+    padding: 25px;
+    width: 40%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+
+/* Fade-in Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Close Button */
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+}
+
+.close-btn:hover {
+    color: red;
+}
+
+
+.modal h2 {
     text-align: center;
-    font-size: 13px;
-}
-.report-table tbody td {
+    font-size: 24px;
     color: #333;
+    margin-bottom: 15px;
+}
+
+.modal form {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal form label {
+    font-weight: 600;
+    color: #444;
+    margin-top: 10px;
+}
+
+.modal form input, 
+.modal form select {
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: all 0.3s ease-in-out;
+}
+
+.modal form input:focus,
+.modal form select:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+.modal form button {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 15px;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.3s ease-in-out;
+}
+
+.modal form button:hover {
+    background: linear-gradient(135deg, #0056b3, #003d82);
 }
 
 .pagination {
@@ -447,5 +592,97 @@ body {
 
 .pagination button:disabled {
     background-color: gray;
-    
+    cursor: not-allowed;
+}
+
+/* Delete button */
+.delete-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.delete-btn:hover {
+    background-color: #c0392b;
+}
+
+.delete-btn:hover {
+    background-color: #d32f2f; /* Slightly darker on hover */
+    transform: scale(1.05); /* Subtle hover effect */
+}
+
+.delete-btn {
+    font-size: 12px; /* Smaller button text */
+    padding: 4px 8px; /* Less padding */
+}
+
+.delete-btn {
+    font-size: 10px;
+    padding: 4px 8px;
+}
+
+.delete-btn{
+    padding: 5px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 2px;
+}
+
+.delete-btn {
+    font-size: 12px; /* Slightly larger for readability */
+    padding: 5px 10px; /* Balanced padding */
+    border-radius: 4px; /* Slightly rounded corners for a modern look */
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out; /* Smooth transitions */
+}
+.delete-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+/* Deactive button */
+.deactivate-btn {
+    background-color: #f4a836;
+    color: white;
+}
+
+.deactivate-btn:hover {
+    background-color: #f4a836;
+}
+
+.deactivate-btn:hover {
+    background-color: #f4a836; /* Slightly darker on hover */
+    transform: scale(1.05); /* Subtle hover effect */
+}
+
+.deactivate-btn {
+    font-size: 12px; /* Smaller button text */
+    padding: 4px 8px; /* Less padding */
+}
+
+.deactivate-btn {
+    font-size: 10px;
+    padding: 4px 8px;
+}
+
+.deactivate-btn{
+    padding: 5px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 2px;
+}
+
+.deactivate-btn {
+    font-size: 12px; /* Slightly larger for readability */
+    padding: 5px 10px; /* Balanced padding */
+    border-radius: 4px; /* Slightly rounded corners for a modern look */
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out; /* Smooth transitions */
+}
+.deactivate-btn {
+    background-color: #f4a836;
+    color: white;
 }

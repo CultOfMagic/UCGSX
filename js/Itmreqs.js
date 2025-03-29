@@ -186,7 +186,87 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+document.addEventListener("DOMContentLoaded", function () {
+    const requestForm = document.getElementById("requestForm");
 
+    requestForm.addEventListener("submit", async function (event) {
+        event.preventDefault(); // Prevent default form submission
 
+        const formData = new FormData(requestForm);
+        const submitButton = requestForm.querySelector(".submit-btn");
+        submitButton.disabled = true; // Disable button to prevent multiple submissions
 
+        try {
+            const response = await fetch(requestForm.action, {
+                method: "POST",
+                body: formData,
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert(result.message); // Display success message
+                requestForm.reset(); // Clear the form
+            } else {
+                alert(result.message); // Display error message
+            }
+        } catch (error) {
+            alert("An error occurred while submitting the form. Please try again.");
+        } finally {
+            submitButton.disabled = false; // Re-enable the button
+        }
+    });
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    const approveButtons = document.querySelectorAll(".approve-btn");
+    const rejectButtons = document.querySelectorAll(".reject-btn");
+
+    approveButtons.forEach(button => {
+        button.addEventListener("click", function () {
+            const requestId = this.closest("tr").dataset.requestId;
+
+            fetch("handleRequest.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `action=approve&request_id=${requestId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            });
+        });
+    });
+
+    rejectButtons.forEach(button => {
+        button.addEventListener("click", function () {
+            const requestId = this.closest("tr").dataset.requestId;
+            const reason = prompt("Enter rejection reason:");
+
+            if (!reason) {
+                alert("Rejection reason is required.");
+                return;
+            }
+
+            fetch("handleRequest.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `action=reject&request_id=${requestId}&reason=${encodeURIComponent(reason)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert(data.message);
+                }
+            });
+        });
+    });
+});
 //Search and Filter Script

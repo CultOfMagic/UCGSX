@@ -1,12 +1,11 @@
 document.addEventListener("DOMContentLoaded", function () {
+    // Handle dropdown state
     const dropdownArrows = document.querySelectorAll(".arrow-icon");
-
-    // Retrieve dropdown state from localStorage
     const savedDropdownState = JSON.parse(localStorage.getItem("dropdownState")) || {};
 
     dropdownArrows.forEach(arrow => {
-        let parent = arrow.closest(".dropdown");
-        let dropdownText = parent.querySelector(".text").innerText;
+        const parent = arrow.closest(".dropdown");
+        const dropdownText = parent.querySelector(".text").innerText;
 
         // Apply saved state
         if (savedDropdownState[dropdownText]) {
@@ -14,32 +13,28 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         arrow.addEventListener("click", function (event) {
-            event.stopPropagation(); // Prevent triggering the parent link
-            
-            let parent = this.closest(".dropdown");
+            event.stopPropagation();
             parent.classList.toggle("active");
 
-            // Save the state in localStorage
+            // Save state in localStorage
             savedDropdownState[dropdownText] = parent.classList.contains("active");
             localStorage.setItem("dropdownState", JSON.stringify(savedDropdownState));
         });
     });
-});
 
-// Profile Dropdown
-document.addEventListener("DOMContentLoaded", function () {
+    // Handle user profile dropdown
     const userIcon = document.getElementById("userIcon");
     const userDropdown = document.getElementById("userDropdown");
 
     userIcon.addEventListener("click", function (event) {
-        event.stopPropagation(); // Prevent closing when clicking inside
+        event.stopPropagation();
         userDropdown.classList.toggle("show");
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener("click", function (event) {
         if (!userIcon.contains(event.target) && !userDropdown.contains(event.target)) {
             userDropdown.classList.remove("show");
         }
     });
+
 });

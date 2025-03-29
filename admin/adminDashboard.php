@@ -1,8 +1,37 @@
-<?php 
+<?php
+session_start();
 include 'db_connection.php';
+
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+// Fetch currently logged-in admin details
+$currentAdminId = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, email, role FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $currentAdminId);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentAdmin = $result->fetch_assoc();
+$stmt->close();
+
+// Pass the current admin details to the frontend
+$accountName = $currentAdmin['username'] ?? 'User';
+$accountEmail = $currentAdmin['email'] ?? '';
+$accountRole = $currentAdmin['role'] ?? '';
+
+try {
+    // Fetch the total number of users
+    $userCountQuery = "SELECT COUNT(*) FROM users";
+    $userCountResult = $conn->query($userCountQuery);
+    $userCount = $userCountResult->fetch_row()[0];
+} catch (mysqli_sql_exception $e) {
+    die("Error: Unable to fetch user count. Please ensure the 'users' table exists in the database.");
+}
 ?>
 
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -20,15 +49,15 @@ include 'db_connection.php';
                 <span class="website-name">UCGS Inventory</span>
             </div>
             <div class="right-side">
-            <div class="user">
-    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text">Admin</span>
-    <div class="user-dropdown" id="userDropdown">
-        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
-        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
-    </div>
-</div>
+                <div class="user">
+                    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
+                    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
+                        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+                        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -71,7 +100,7 @@ include 'db_connection.php';
         <div class="card gradient-yellow">
                 <i class="fa-solid fa-user"></i>
                 <h2>Users</h2>
-                <p>150</p>
+                <p><?php echo htmlspecialchars($userCount); ?></p>
                 <canvas id="chart1" class="chart-container"></canvas>
             </div>
             <div class="card gradient-orange">
@@ -92,9 +121,6 @@ include 'db_connection.php';
                 <p>500</p>
                 <canvas id="chart4" class="chart-container"></canvas>
             </div>
-        </div>
-        <div class="main-chart-container">
-            <canvas id="mainChart"></canvas>
         </div>
         <div class="main-content">
         <div class="table-container">

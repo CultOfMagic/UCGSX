@@ -1,158 +1,166 @@
 <?php
 include 'db_connection.php';
+session_start();
 
-// Create User (POST request)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
-    $username = $_POST['username'] ?? '';
-    $email = $_POST['email'] ?? '';
-    $password = $_POST['password'] ?? ''; // IMPORTANT: Hash passwords before storing
-    $role = $_POST['role'] ?? '';
-    $ministry = $_POST['ministry'] ?? '';
-    $created_at = date('Y-m-d H:i:s');
-
-    // Hash the password for security
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-    // Insert user into the database
-    $query = "INSERT INTO users (username, email, password, role, ministry, created_at) VALUES (?, ?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ssssss", $username, $email, $hashedPassword, $role, $ministry, $created_at);
-
-    if ($stmt->execute()) {
-        echo json_encode(["status" => "success", "message" => "User created successfully"]);
-    } else {
-        echo json_encode(["status" => "error", "message" => "Failed to create user"]);
-    }
+// Verify admin session
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
     exit();
 }
 
-// Fetch Users (GET request)
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'read') {
-    $search = $_GET['search'] ?? '';
-    $page = $_GET['page'] ?? 1;
-    $itemsPerPage = 10;
-    $offset = ($page - 1) * $itemsPerPage;
+// Fetch currently logged-in admin details
+$currentAdminId = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $currentAdminId);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentAdmin = $result->fetch_assoc();
+$stmt->close();
 
-    $query = "SELECT * FROM users WHERE username LIKE ? LIMIT ? OFFSET ?";
-    $searchParam = "%" . $search . "%";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("sii", $searchParam, $itemsPerPage, $offset);
+// Pass the current admin details to the frontend
+$accountName = $currentAdmin['username'] ?? 'User';
+$accountEmail = $currentAdmin['email'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'];
+    $user_id = $_POST['user_id'] ?? null;
+    $username = $_POST['username'] ?? null;
+    $email = $_POST['email'] ?? null;
+    $password = $_POST['password'] ?? null;
+    $role = $_POST['role'] ?? null;
+    $ministry = $_POST['ministry'] ?? null;
+    $status = $_POST['status'] ?? null;
 
-    $stmt->execute();
-    $result = $stmt->get_result();
+    if ($action === 'CREATE') {
+        if ($password) {
+            $hashedPassword = password_hash($password, PASSWORD_BCRYPT); // Hash the password
+        }
 
-    $users = [];
-    while ($row = $result->fetch_assoc()) {
-        $users[] = $row;
+        $stmt = $conn->prepare("INSERT INTO users (username, email, password, role, ministry, status) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $username, $email, $hashedPassword, $role, $ministry, $status);
+        $stmt->execute();
+        $stmt->close();
+
+        echo json_encode(['success' => true, 'user_id' => $conn->insert_id]);
+        exit;
     }
 
+    if ($action === 'UPDATE_STATUS') {
+        $stmt = $conn->prepare("UPDATE users SET status = ? WHERE user_id = ?");
+        $stmt->bind_param("si", $status, $user_id);
+        $stmt->execute();
+        $stmt->close();
+
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
+    if ($action === 'DELETE' && $user_id) {
+        $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $user_id);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Failed to delete user.']);
+        }
+        $stmt->close();
+        exit;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetchUsers'])) {
+    $result = $conn->query("SELECT user_id, username, email, role, ministry, status, created_at AS dateCreated FROM users");
+    $users = $result->fetch_all(MYSQLI_ASSOC);
+    foreach ($users as &$user) {
+        $user['status'] = $user['status'] === '1' ? 'Active' : 'Inactive'; // Map status to readable format
+    }
     echo json_encode($users);
+    $conn->close();
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetchAllUsers'])) {
+    $result = $conn->query("SELECT * FROM users");
+    $allUsers = $result->fetch_all(MYSQLI_ASSOC);
+    echo json_encode($allUsers);
+    $conn->close();
+    exit;
+}
+
+$loggedInUser = getLoggedInUser($conn);
+if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
+    header("Location: ../login/login.php");
     exit();
 }
 
-// Update User (POST request)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
-    $user_id = $_POST['user_id'] ?? '';
-    $username = $_POST['username'] ?? '';
-    $email = $_POST['email'] ?? '';
-    $role = $_POST['role'] ?? '';
-    $ministry = $_POST['ministry'] ?? '';
-
-    $query = "UPDATE users SET username = ?, email = ?, role = ?, ministry = ?, updated_at = NOW() WHERE user_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ssssi", $username, $email, $role, $ministry, $user_id);
-
-    if ($stmt->execute()) {
-        echo json_encode(["status" => "success", "message" => "User updated successfully"]);
-    } else {
-        echo json_encode(["status" => "error", "message" => "Failed to update user"]);
-    }
-    exit();
-}
-
-// Soft Delete User (POST request)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
-    $user_id = $_POST['user_id'] ?? '';
-
-    $query = "UPDATE users SET deleted_at = NOW() WHERE user_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $user_id);
-
-    if ($stmt->execute()) {
-        echo json_encode(["status" => "success", "message" => "User deleted successfully"]);
-    } else {
-        echo json_encode(["status" => "error", "message" => "Failed to delete user"]);
-    }
-    exit();
-}
-
-// Close database connection
-$conn->close();
+$accountName = $loggedInUser['username'];
+$accountRole = $loggedInUser['role'];
 ?>
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Dashboard</title>
-    <link rel="stylesheet" href="../css/UsersManagements.css">
+    <link rel="stylesheet" href="../css/UsersManagement.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 
 <body>
-<header class="header">
+    <header class="header">
         <div class="header-content">
             <div class="left-side">
                 <img src="../assets/img/Logo.png" alt="Logo" class="logo">
                 <span class="website-name">UCGS Inventory</span>
             </div>
             <div class="right-side">
-            <div class="user">
-    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text">Admin</span>
-    <div class="user-dropdown" id="userDropdown">
-        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
-        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="#"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
-    </div>
-</div>
+                <div class="user">
+                    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
+                    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
+                        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+                        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
 
     <aside class="sidebar">
-        <ul>
-            <li><a href="AdminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
-            <li class="dropdown">
-                <a href="#" class="dropdown-btn">
-                    <img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">
-                    <span class="text">Items</span> 
-                    <i class="fa-solid fa-chevron-down arrow-icon"></i>
-                </a>
-                <ul class="dropdown-content">
-                    <li><a href="ItemRecords.php"> Item Records</a></li>
-                    <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
-                </ul>
-            </li>
-            <li class="dropdown">
-                <a href="#" class="dropdown-btn">
-                    <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
-                    <span class="text">Request Record</span>
-                    <i class="fa-solid fa-chevron-down arrow-icon"></i>
-                </a>
-                <ul class="dropdown-content">
-                    <li><a href="ItemRequest.php"> Item Request by User</a></li>
-                    <li><a href="ItemBorrowed.php"> Item Borrowed</a></li>
-                    <li><a href="ItemReturned.php"> Item Returned</a></li>
-                </ul>
-            </li>
-            <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>
-            <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
-        </ul>
-    </aside>
+    <ul>
+        <li><a href="AdminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
+
+        <!-- Items with dropdown -->
+        <li class="dropdown">
+            <a href="#" class="dropdown-btn">
+                <img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">
+                <span class="text">Items</span> 
+                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+            </a>
+            <ul class="dropdown-content">
+                <li><a href="ItemRecords.php"><i class=""></i> Item Records</a></li>
+                <li><a href="InventorySummary.php"><i class=""></i> Inventory Summary</a></li>   
+            </ul>
+        </li>
+
+        <!-- Request Record with Dropdown -->
+        <li class="dropdown">
+            <a href="#" class="dropdown-btn">
+                <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
+                <span class="text">Request Record</span>
+                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+            </a>
+            <ul class="dropdown-content">
+                <li><a href="ItemRequest.php"><i class=""></i> Item Request by User</a></li>
+                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrowed</a></li>
+                <li><a href="ItemReturned.php"><i class=""></i> Item Returned</a></li>
+            </ul>
+        </li>
+
+        <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>
+        <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
+    </ul>
+</aside>
 
 <div class="main-content">
         <h2>User Management</h2>
@@ -178,10 +186,23 @@ $conn->close();
             <th>Role</th>
             <th>Date Creation</th>
             <th>Ministry</th>
+            <th>Status</th>
+            <th>Actions</th>
         </tr>
-    </thead>
-    <tbody id="user-table-body">
-
+        <tr data-user-id="<?php echo $user['user_id']; ?>">
+            <td><?php echo htmlspecialchars($user['username']); ?></td>
+            <td><?php echo htmlspecialchars($user['email']); ?></td>
+            <td><?php echo htmlspecialchars($user['role']); ?></td>
+            <td><?php echo htmlspecialchars($user['ministry']); ?></td>
+            <td><?php echo htmlspecialchars($user['status']); ?></td>
+            <td>
+                <button class="delete-btn" onclick="deleteUser(<?php echo $user['user_id']; ?>)">Delete</button>
+                <button class="deactivate-btn" onclick="openDeactivateModal(<?php echo $user['user_id']; ?>)">Deactivate</button>
+            </td>
+        </tr>
+                <button class="deactivate-btn" onclick="openDeactivateModal(<?php echo $user['user_id']; ?>)">Deactivate</button>
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -195,6 +216,7 @@ $conn->close();
     <div class="modal-content">
         <h2>Create Account</h2>
         <form id="account-form">
+            <input type="hidden" id="user-id"> <!-- Hidden input for user_id -->
             <label for="username">Username / Account Name</label>
             <input type="text" id="username" required>
 
@@ -206,6 +228,7 @@ $conn->close();
 
             <label for="ministry">Ministry</label>
             <select id="ministry">
+                <option value="Choose">-- Choose your Ministry --</option>
                 <option value="UCM">UCM</option>
                 <option value="CWA">CWA</option>
                 <option value="CHOIR">CHOIR</option>
@@ -224,6 +247,29 @@ $conn->close();
     </div>
 </div>
 
+<div id="deactivate-account-modal" class="modal">
+    <div class="modal-content">
+        <h2>Deactivate Account</h2>
+        <form id="deactivate-form">
+            <input type="hidden" id="deactivate-user-id"> <!-- Hidden input for user_id -->
+            <label for="deactivate-duration">Duration</label>
+            <select id="deactivate-duration">
+                <option value="7">1 Week</option>
+                <option value="30">1 Month</option>
+                <option value="90">3 Months</option>
+                <option value="custom">Custom</option>
+            </select>
+
+            <div id="custom-duration-container" style="display: none;">
+                <label for="custom-duration">Custom Duration (Days)</label>
+                <input type="number" id="custom-duration" min="1">
+            </div>
+
+            <button type="submit">Submit</button>
+            <button type="button" id="deactivate-cancel-btn">Cancel</button>
+        </form>
+    </div>
+</div>
 
     <script src="../js/UsersManagements.js"></script>
 </body>

@@ -1,43 +1,53 @@
 <?php
 session_start();
-require 'db_connection.php'; // Assume this file contains database connection
+include '../user/db_connection.php';
 
 $error = '';
 $email = '';
 
-// Remember me functionality
-if (isset($_COOKIE['remember_email'])) {
-    $email = htmlspecialchars($_COOKIE['remember_email']);
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-    $password = $_POST['password'];
-    $remember = isset($_POST['remember']);
+    $email = $_POST['email'] ?? '';
+    $password = $_POST['password'] ?? '';
 
-    if (empty($email) || empty($password)) {
-        $error = 'Please fill in all fields';
-    } else {
-        // Database query using prepared statements
-        $stmt = $pdo->prepare("SELECT id, password, role FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
-
-        if ($user && password_verify($password, $user['password'])) {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['role'] = $user['role'];
-            
-            // Set remember me cookie (1 month)
-            if ($remember) {
-                setcookie('remember_email', $email, time() + 60*60*24*30, '/', '', true, true);
-            }
-            
-            header('Location: dashboard.php');
-            exit();
-        } else {
-            $error = 'Invalid email or password';
-        }
+    // Database connection
+    $conn = new mysqli('localhost', 'root', '', 'ucgs');
+    if ($conn->connect_error) {
+        die('Connection failed: ' . $conn->connect_error);
     }
+
+    // Query the users table
+    $stmt = $conn->prepare('SELECT * FROM users WHERE email = ? AND status = "Active"');
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows === 1) {
+        $user = $result->fetch_assoc();
+        // Verify password
+        if (password_verify($password, $user['password'])) {
+            // Successful login
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['user_email'] = $user['email'];
+            $_SESSION['role'] = $user['role']; // Assuming 'role' column exists in the database
+
+            // Redirect based on role
+            if ($user['role'] === 'Administrator') {
+                header('Location: ../admin/AdminDashboard.php');
+            } elseif ($user['role'] === 'User') {
+                header('Location: ../user/UserDashboard.php'); // Ensure this path is correct for user side
+            } else {
+                header('Location: ../guest/GuestDashboard.php'); // Optional: Handle other roles if needed
+            }
+            exit;
+        } else {
+            $error = 'Invalid email or password.';
+        }
+    } else {
+        $error = 'Invalid email or password.';
+    }
+
+    $stmt->close();
+    $conn->close();
 }
 ?>
 <!DOCTYPE html>
@@ -92,13 +102,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
         </div>
     </div>
-
-    <script>
-        function togglePassword() {
-            const passwordField = document.getElementById('password');
-            const type = passwordField.type === 'password' ? 'text' : 'password';
-            passwordField.type = type;
-        }
-    </script>
+<script src="../js/signin.js"></script>
 </body>
 </html>
