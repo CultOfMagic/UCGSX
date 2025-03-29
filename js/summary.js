@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initialize the first page
     showPage(currentPage);
 });
+
 //item records delete
 document.addEventListener("DOMContentLoaded", function () {
     const deleteModal = document.getElementById("deleteModal");

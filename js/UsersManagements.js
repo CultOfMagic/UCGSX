@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // Fix: Ensure dropdown state is properly saved and restored
+    // Dropdown State Management
     const dropdownArrows = document.querySelectorAll(".arrow-icon");
     const savedDropdownState = JSON.parse(localStorage.getItem("dropdownState")) || {};
 
@@ -19,29 +19,31 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
-    // Fix: Ensure modals are properly initialized and closed
-    const createAccountModal = document.getElementById("create-account-modal");
-    const deactivateModal = document.getElementById("deactivate-account-modal");
+    // Modal Initialization
+    function initializeModal(modalId, openBtnId, closeBtnId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
 
-    if (createAccountModal) {
-        document.getElementById("create-account-btn").addEventListener("click", () => {
-            createAccountModal.style.display = "block";
-        });
-        document.getElementById("cancel-btn").addEventListener("click", () => {
-            createAccountModal.style.display = "none";
+        const openBtn = document.getElementById(openBtnId);
+        const closeBtn = document.getElementById(closeBtnId);
+
+        modal.style.display = "none";
+
+        if (openBtn) openBtn.addEventListener("click", () => modal.style.display = "block");
+        if (closeBtn) closeBtn.addEventListener("click", () => modal.style.display = "none");
+
+        window.addEventListener("click", event => {
+            if (event.target === modal) modal.style.display = "none";
         });
     }
 
-    if (deactivateModal) {
-        document.getElementById("deactivate-cancel-btn").addEventListener("click", () => {
-            deactivateModal.style.display = "none";
-        });
-    }
+    initializeModal("create-account-modal", "create-account-btn", "cancel-btn");
+    initializeModal("deactivate-account-modal", null, "deactivate-cancel-btn");
 
-    // Fix: Ensure table is dynamically updated
+    // Table and Pagination
     function updateTable() {
         const tbody = document.getElementById("user-table-body");
-        tbody.innerHTML = ""; // Clear existing rows
+        tbody.innerHTML = "";
 
         const start = (currentPage - 1) * rowsPerPage;
         const end = start + rowsPerPage;
@@ -54,7 +56,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 <td>${user.role}</td>
                 <td>${user.dateCreated}</td>
                 <td>${user.ministry}</td>
-                <td>${user.status}</td>
+                <td>
+                    <select onchange="updateStatus(${user.user_id}, this.value)">
+                        <option value="Active" ${user.status === 'Active' ? 'selected' : ''}>Active</option>
+                        <option value="Inactive" ${user.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                    </select>
+                </td>
                 <td>
                     <button class="delete-btn" onclick="deleteUser(${user.user_id})">Delete</button>
                     <button class="deactivate-btn" onclick="openDeactivateModal(${user.user_id})">Deactivate</button>
@@ -65,51 +72,92 @@ document.addEventListener("DOMContentLoaded", function () {
         updatePagination();
     }
 
-    // Fix: Ensure pagination works correctly
     function updatePagination() {
         document.getElementById("page-number").innerText = `Page ${currentPage}`;
         document.getElementById("prev-btn").disabled = currentPage === 1;
         document.getElementById("next-btn").disabled = currentPage >= Math.ceil(users.length / rowsPerPage);
     }
 
-    // Fetch users on page load
-    fetch('UserManagement.php?fetchUsers=true')
-        .then(response => response.json())
-        .then(data => {
-            users = data;
-            updateTable();
-        })
-        .catch(error => console.error('Error fetching users:', error));
-});
+    // Fetch Users
+    function fetchUsers(url, callback) {
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    users = data.map(user => ({
+                        ...user,
+                        status: user.status || 'Active'
+                    }));
+                    callback();
+                } else if (data.error) {
+                    alert(data.error);
+                }
+            })
+            .catch(error => console.error('Error fetching users:', error));
+    }
 
-// Profile Dropdown
-document.addEventListener("DOMContentLoaded", function () {
+    fetchUsers('UserManagement.php?fetchUsers=true', updateTable);
+
+    // Search and Filter
+    function filterTable() {
+        const query = (document.getElementById("search-box")?.value || "").toLowerCase();
+        const startDate = document.getElementById("start-date")?.value ? new Date(document.getElementById("start-date").value) : null;
+        const endDate = document.getElementById("end-date")?.value ? new Date(document.getElementById("end-date").value) : null;
+
+        document.querySelectorAll(".user-table tbody tr").forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const dateCell = row.cells[4]?.textContent.trim();
+            const rowDate = dateCell ? parseDate(dateCell) : null;
+
+            const matchesSearch = text.includes(query);
+            const matchesDate = (!rowDate || (!startDate && !endDate) || 
+                (startDate && rowDate >= startDate) && (endDate && rowDate <= endDate));
+
+            row.style.display = matchesSearch && matchesDate ? "table-row" : "none";
+        });
+    }
+
+    document.getElementById("search-box")?.addEventListener("input", filterTable);
+    document.getElementById("start-date")?.addEventListener("change", filterTable);
+    document.getElementById("end-date")?.addEventListener("change", filterTable);
+
+    // Utility Functions
+    function parseDate(dateStr) {
+        const formats = [
+            { regex: /^\d{4}-\d{2}-\d{2}$/, parse: parts => new Date(parts[0], parts[1] - 1, parts[2]) },
+            { regex: /^\d{2}\/\d{2}\/\d{4}$/, parse: parts => new Date(parts[2], parts[0] - 1, parts[1]) },
+            { regex: /^\d{2}-\d{2}-\d{4}$/, parse: parts => new Date(parts[2], parts[1] - 1, parts[0]) }
+        ];
+
+        for (const { regex, parse } of formats) {
+            if (regex.test(dateStr)) {
+                return parse(dateStr.split(/[-\/]/));
+            }
+        }
+        return null;
+    }
+
+    // Profile Dropdown
     const userIcon = document.getElementById("userIcon");
     const userDropdown = document.getElementById("userDropdown");
 
-    userIcon.addEventListener("click", function (event) {
-        event.stopPropagation(); // Prevent closing when clicking inside
-        userDropdown.classList.toggle("show");
+    userIcon?.addEventListener("click", event => {
+        event.stopPropagation();
+        userDropdown?.classList.toggle("show");
     });
 
-    // Close dropdown when clicking outside
-    document.addEventListener("click", function (event) {
-        if (!userIcon.contains(event.target) && !userDropdown.contains(event.target)) {
-            userDropdown.classList.remove("show");
+    document.addEventListener("click", event => {
+        if (!userIcon?.contains(event.target) && !userDropdown?.contains(event.target)) {
+            userDropdown?.classList.remove("show");
         }
     });
-});
 
-document.addEventListener("DOMContentLoaded", function () {
-    const adminText = document.querySelector(".admin-text");
-    const userDropdown = document.getElementById("userDropdown");
-
-    // Fetch the current admin details from the server
+    // Fetch Admin Details
     fetch('UserManagement.php?fetchCurrentAdmin=true')
         .then(response => response.json())
         .then(data => {
             if (data.username && data.email) {
-                adminText.textContent = data.username; // Update the admin name in the header
+                document.querySelector(".admin-text").textContent = data.username;
                 userDropdown.innerHTML = `
                     <a href="#"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> ${data.username}</a>
                     <a href="#"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
@@ -119,164 +167,6 @@ document.addEventListener("DOMContentLoaded", function () {
         })
         .catch(error => console.error('Error fetching current admin:', error));
 });
-
-// Modal Functionality
-document.addEventListener("DOMContentLoaded", function () {
-    const createAccountBtn = document.getElementById("create-account-btn");
-    const modal = document.getElementById("create-account-modal");
-    const closeBtn = document.querySelector(".close-btn");
-    const cancelBtn = document.getElementById("cancel-btn");
-
-    // Ensure the modal is hidden when the page loads
-    modal.style.display = "none";
-
-    if (createAccountBtn && modal) {
-        createAccountBtn.addEventListener("click", function () {
-            modal.style.display = "block";
-        });
-    }
-
-    if (closeBtn) {
-        closeBtn.addEventListener("click", function () {
-            modal.style.display = "none";
-        });
-    }
-
-    if (cancelBtn) {
-        cancelBtn.addEventListener("click", function () {
-            modal.style.display = "none";
-        });
-    }
-
-    window.addEventListener("click", function (event) {
-        if (event.target === modal) {
-            modal.style.display = "none";
-        }
-    });
-});
-
-document.addEventListener("DOMContentLoaded", function () {
-    const deactivateBtns = document.querySelectorAll(".deactivate-btn");
-    const deactivateModal = document.getElementById("deactivate-account-modal");
-    const deactivateCloseBtn = document.querySelector(".deactivate-close-btn");
-    const deactivateCancelBtn = document.getElementById("deactivate-cancel-btn");
-
-    // Ensure the modal is hidden when the page loads
-    if (deactivateModal) {
-        deactivateModal.style.display = "none";
-    }
-
-    deactivateBtns.forEach(btn => {
-        btn.addEventListener("click", function () {
-            if (deactivateModal) {
-                deactivateModal.style.display = "block";
-            }
-        });
-    });
-
-    if (deactivateCloseBtn) {
-        deactivateCloseBtn.addEventListener("click", function () {
-            if (deactivateModal) {
-                deactivateModal.style.display = "none";
-            }
-        });
-    }
-
-    if (deactivateCancelBtn) {
-        deactivateCancelBtn.addEventListener("click", function () {
-            if (deactivateModal) {
-                deactivateModal.style.display = "none";
-            }
-        });
-    }
-
-    window.addEventListener("click", function (event) {
-        if (event.target === deactivateModal) {
-            if (deactivateModal) {
-                deactivateModal.style.display = "none";
-            }
-        }
-    });
-});
-
-// Search Functionality
-document.addEventListener("DOMContentLoaded", function () {
-    const searchBox = document.getElementById("search-box");
-    if (searchBox) {
-        searchBox.addEventListener("input", filterTable);
-    }
-});
-
-// Date Filter Functionality
-document.addEventListener("DOMContentLoaded", function () {
-    const startDate = document.getElementById("start-date");
-    const endDate = document.getElementById("end-date");
-
-    if (startDate) startDate.addEventListener("change", filterTable);
-    if (endDate) endDate.addEventListener("change", filterTable);
-});
-
-// Filtering Functionality
-function filterTable() {
-    const searchBox = document.getElementById("search-box");
-    const query = searchBox ? searchBox.value.toLowerCase() : "";
-
-    const startDate = document.getElementById("start-date");
-    const endDate = document.getElementById("end-date");
-
-    const start = startDate && startDate.value ? new Date(startDate.value) : null;
-    const end = endDate && endDate.value ? new Date(endDate.value) : null;
-
-    const tableRows = document.querySelectorAll(".user-table tbody tr");
-
-    tableRows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        const dateCell = row.cells[4]?.textContent.trim(); // Ensure "Date Creation" column index is correct
-
-        let rowDate = null;
-        if (dateCell) {
-            rowDate = parseDate(dateCell); // Parse the "Date Creation" column
-        }
-
-        let matchesSearch = text.includes(query);
-        let matchesDate = true;
-
-        if (rowDate) {
-            if (start && end) {
-                matchesDate = rowDate >= start && rowDate <= end;
-            } else if (start) {
-                matchesDate = rowDate >= start;
-            } else if (end) {
-                matchesDate = rowDate <= end;
-            }
-        }
-
-        row.style.display = matchesSearch && matchesDate ? "table-row" : "none";
-    });
-}
-
-// Function to parse different date formats
-function parseDate(dateStr) {
-    const dateFormats = [
-        /^\d{4}-\d{2}-\d{2}$/, // YYYY-MM-DD (default HTML date format)
-        /^\d{2}\/\d{2}\/\d{4}$/, // MM/DD/YYYY
-        /^\d{2}-\d{2}-\d{4}$/ // DD-MM-YYYY
-    ];
-
-    for (let format of dateFormats) {
-        if (format.test(dateStr)) {
-            let parts = dateStr.split(/[-\/]/);
-            if (format === dateFormats[0]) {
-                return new Date(parts[0], parts[1] - 1, parts[2]); // YYYY-MM-DD
-            } else if (format === dateFormats[1]) {
-                return new Date(parts[2], parts[0] - 1, parts[1]); // MM/DD/YYYY
-            } else if (format === dateFormats[2]) {
-                return new Date(parts[2], parts[1] - 1, parts[0]); // DD-MM-YYYY
-            }
-        }
-    }
-    return null;
-}
 
 // Create Account
 let users = [];
@@ -523,7 +413,6 @@ function fetchAdmins() {
                     const row = `<tr>
                         <td>${admin.username}</td>
                         <td>${admin.email}</td>
-                        <td>********</td>
                         <td>${admin.role}</td>
                         <td>${admin.dateCreated}</td>
                         <td>${admin.ministry}</td>
@@ -557,7 +446,6 @@ function fetchAllUsers() {
                     const row = `<tr>
                         <td>${user.username}</td>
                         <td>${user.email}</td>
-                        <td>********</td>
                         <td>${user.role}</td>
                         <td>${user.created_at}</td>
                         <td>${user.ministry}</td>

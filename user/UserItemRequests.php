@@ -1,5 +1,11 @@
 <?php
+// Include database connection with error handling
 include 'db_connection.php';
+
+if (!$conn) {
+    die("Database connection failed: " . mysqli_connect_error());
+}
+
 session_start();
 
 function getCurrentUser($conn) {
@@ -10,6 +16,9 @@ function getCurrentUser($conn) {
 
     $userId = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT username, email, ministry FROM users WHERE user_id = ? AND role = 'User'");
+    if (!$stmt) {
+        die("Database error: " . $conn->error);
+    }
     $stmt->bind_param("i", $userId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -40,40 +49,57 @@ $successMessage = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    header('Content-Type: application/json');
-
     // Validate CSRF token
     $csrfToken = $_POST['csrf_token'] ?? '';
     if (!hash_equals($_SESSION['csrf_token'] ?? '', $csrfToken)) {
         $errorMessage = 'Invalid CSRF token.';
     } else {
         // Sanitize and validate input fields
-        $itemName = htmlspecialchars(trim($_POST['item-name']));
-        $itemCategory = htmlspecialchars(trim($_POST['item-category']));
-        $quantity = filter_var($_POST['quantity'], FILTER_VALIDATE_INT);
-        $itemUnit = htmlspecialchars(trim($_POST['item-unit']));
-        $purpose = htmlspecialchars(trim($_POST['purpose']));
+        $itemName = htmlspecialchars(trim($_POST['item-name'] ?? ''));
+        $itemCategory = htmlspecialchars(trim($_POST['item-category'] ?? ''));
+        $quantity = filter_var($_POST['quantity'] ?? 0, FILTER_VALIDATE_INT);
+        $itemUnit = htmlspecialchars(trim($_POST['item-unit'] ?? ''));
+        $purpose = htmlspecialchars(trim($_POST['purpose'] ?? ''));
         $notes = isset($_POST['notes']) ? htmlspecialchars(trim($_POST['notes'])) : null;
 
         if (empty($itemName) || empty($itemCategory) || $quantity <= 0 || empty($itemUnit) || empty($purpose)) {
             $errorMessage = 'All fields are required. Please fill out the form completely.';
         } else {
-            // Insert the new item request into the new_item_requests table
-            $insertQuery = "INSERT INTO new_item_requests (user_id, item_name, item_category, quantity, purpose, notes, status, ministry) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)";
-            $insertStmt = $conn->prepare($insertQuery);
+            // Check if the item already exists in the new_item_requests table
+            $checkQuery = "SELECT COUNT(*) AS count FROM new_item_requests WHERE item_name = ? AND user_id = ? AND status = 'Pending'";
+            $checkStmt = $conn->prepare($checkQuery);
+            if ($checkStmt) {
+                $checkStmt->bind_param("si", $itemName, $_SESSION['user_id']);
+                $checkStmt->execute();
+                $checkResult = $checkStmt->get_result();
+                $row = $checkResult->fetch_assoc();
+                $checkStmt->close();
 
-            if (!$insertStmt) {
-                $errorMessage = 'Database error: Unable to prepare statement.';
-            } else {
-                $insertStmt->bind_param("ississs", $userId, $itemName, $itemCategory, $quantity, $purpose, $notes, $userMinistry);
-                $insertStmt->execute();
-
-                if ($insertStmt->affected_rows > 0) {
-                    $successMessage = 'Your request has been submitted successfully and is pending admin approval.';
+                if ($row['count'] > 0) {
+                    $errorMessage = 'You already have a pending request for this item.';
                 } else {
-                    $errorMessage = 'Failed to submit your request. Please try again.';
+                    // Insert the new item request into the new_item_requests table
+                    $insertQuery = "INSERT INTO new_item_requests (user_id, item_name, item_category, quantity, item_unit, purpose, notes, status, ministry) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)";
+                    $insertStmt = $conn->prepare($insertQuery);
+
+                    if ($insertStmt) {
+                        $insertStmt->bind_param("ississss", $_SESSION['user_id'], $itemName, $itemCategory, $quantity, $itemUnit, $purpose, $notes, $userMinistry);
+                        if ($insertStmt->execute()) {
+                            if ($insertStmt->affected_rows > 0) {
+                                $successMessage = 'Your request has been submitted successfully and is pending admin approval.';
+                            } else {
+                                $errorMessage = 'Failed to submit your request. Please try again.';
+                            }
+                        } else {
+                            $errorMessage = 'Database error: ' . $insertStmt->error;
+                        }
+                        $insertStmt->close();
+                    } else {
+                        $errorMessage = 'Database error: Unable to prepare statement. ' . $conn->error;
+                    }
                 }
-                $insertStmt->close();
+            } else {
+                $errorMessage = 'Database error: Unable to prepare statement. ' . $conn->error;
             }
         }
     }
@@ -126,7 +152,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <ul class="dropdown-content">
                     <li><a href="UserItemRequests.php">New Item Request</a></li>
                     <li><a href="UserItemBorrow.php">Borrow Item Request</a></li>
-                    <li><a href="UserItemReturned.php">Return Item Request</a></ul>
+                    <li><a href="UserItemReturned.php">Return Item Request</a></li>
+                </ul>
             </li>
             <li><a href="UserTransaction.php"><img src="../assets/img/time-management.png" alt="Reports Icon" class="sidebar-icon">Transaction Records</a></li>
         </ul>
@@ -204,5 +231,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
     <script src="../js/usereqs.js"></script>
+    <script>
+    // Sidebar dropdown functionality
+    document.querySelectorAll('.dropdown-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const dropdownContent = button.nextElementSibling;
+            dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
+        });
+    });
+
+    // Profile dropdown functionality
+    const userIcon = document.getElementById('userIcon');
+    const userDropdown = document.getElementById('userDropdown');
+    userIcon.addEventListener('click', () => {
+        userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // Close dropdown if clicked outside
+    document.addEventListener('click', (event) => {
+        if (!userIcon.contains(event.target) && !userDropdown.contains(event.target)) {
+            userDropdown.style.display = 'none';
+        }
+    });
+    </script>
 </body>
 </html>

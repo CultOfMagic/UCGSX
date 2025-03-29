@@ -119,6 +119,12 @@ document.addEventListener("DOMContentLoaded", function() {
     fetch('/api/dashboard-overview')
         .then(response => response.json())
         .then(data => {
+            // Display total items count
+            const totalItemsElement = document.getElementById("totalItemsCount");
+            if (totalItemsElement) {
+                totalItemsElement.innerText = data.totalItems;
+            }
+
             new Chart(document.getElementById("mainChart").getContext("2d"), {
                 type: "bar",
                 data: {

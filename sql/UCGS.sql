@@ -32,6 +32,13 @@ CREATE TABLE IF NOT EXISTS items (
     last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Example inserts for the items table
+INSERT INTO items (item_no, item_name, description, quantity, unit, status, reorder_point, model_no, item_category, item_location, expiration, brand, supplier, price_per_item)
+VALUES 
+('ITEM001', 'Laptop', 'High-performance laptop', 10, 'pcs', 'Available', 5, 'MOD123', 'Electronics', 'Warehouse A', '2025-12-31', 'Dell', 'TechSupplier Inc.', 1200.00),
+('ITEM002', 'Projector', '4K resolution projector', 5, 'pcs', 'Low Stock', 2, 'MOD456', 'Electronics', 'Warehouse B', NULL, 'Epson', 'AV Supplies Co.', 800.00),
+('ITEM003', 'Office Chair', 'Ergonomic office chair', 20, 'pcs', 'Available', 10, 'CHAIR789', 'Furniture', 'Warehouse C', NULL, 'Ikea', 'Furniture World', 150.00);
+
 -- Create Reports Table
 CREATE TABLE IF NOT EXISTS reports (
     report_id INT AUTO_INCREMENT PRIMARY KEY,

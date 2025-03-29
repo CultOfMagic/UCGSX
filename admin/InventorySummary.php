@@ -113,7 +113,7 @@ $result = $conn->query($query);
                 <th>Item Name</th>
                 <th>Description</th>
                 <th>Category</th>
-                <th>Location</th>
+                <th>Item Location</th>
                 <th>Quantity</th>
                 <th>Unit</th>
                 <th>Status</th>
@@ -126,8 +126,8 @@ $result = $conn->query($query);
                         <td><?php echo $row['item_id']; ?></td>
                         <td><?php echo $row['item_name']; ?></td>
                         <td><?php echo $row['description']; ?></td>
-                        <td><?php echo $row['category']; ?></td>
-                        <td><?php echo $row['location']; ?></td>
+                        <td><?php echo $row['item_category'] ?? 'N/A'; ?></td>
+                        <td><?php echo $row['item_location'] ?? 'N/A'; ?></td>
                         <td><?php echo $row['quantity']; ?></td>
                         <td><?php echo $row['unit']; ?></td>
                         <td><?php echo $row['status']; ?></td>

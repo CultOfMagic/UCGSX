@@ -141,5 +141,28 @@ $requestsStmt->close();
 </main>
 
 <script src="../js/UserTransactions.js"></script>
+<script>
+    // Sidebar dropdown functionality
+    document.querySelectorAll('.dropdown-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const dropdownContent = button.nextElementSibling;
+            dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
+        });
+    });
+
+    // Profile dropdown functionality
+    const userIcon = document.getElementById('userIcon');
+    const userDropdown = document.getElementById('userDropdown');
+    userIcon.addEventListener('click', () => {
+        userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // Close dropdown if clicked outside
+    document.addEventListener('click', (event) => {
+        if (!userIcon.contains(event.target) && !userDropdown.contains(event.target)) {
+            userDropdown.style.display = 'none';
+        }
+    });
+</script>
 </body>
 </html>

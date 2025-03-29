@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <aside class="sidebar">
         <ul>
             <li><a href="Userdashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
-            <li><a href="ItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon"> Item Records</a></li>
+            <li><a href="UserItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon"> Item Records</a></li>
             <li class="dropdown">
                 <a href="#" class="dropdown-btn">
                     <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
@@ -128,7 +128,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <ul class="dropdown-content">
                     <li><a href="UserItemRequests.php">New Item Request</a></li>
                     <li><a href="UserItemBorrow.php">Borrow Item Request</a></li>
-                    <li><a href="UserItemReturned.php">Return Item Request</a></li></ul>
+                    <li><a href="UserItemReturned.php">Return Item Request</a></li>
+                </ul>
             </li>
             <li><a href="UserTransaction.php"><img src="../assets/img/time-management.png" alt="Reports Icon" class="sidebar-icon">Transaction Records</a></li>
         </ul>
@@ -161,5 +162,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="../js/userprof.js"></script>
+    <script>
+    // Sidebar dropdown functionality
+    document.querySelectorAll('.dropdown-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const dropdownContent = button.nextElementSibling;
+            dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
+        });
+    });
+
+    // Profile dropdown functionality
+    const userIcon = document.getElementById('userIcon');
+    const userDropdown = document.getElementById('userDropdown');
+    userIcon.addEventListener('click', () => {
+        userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // Close dropdown if clicked outside
+    document.addEventListener('click', (event) => {
+        if (!userIcon.contains(event.target) && !userDropdown.contains(event.target)) {
+            userDropdown.style.display = 'none';
+        }
+    });
+    </script>
 </body>
 </html>

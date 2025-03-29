@@ -22,8 +22,11 @@ $accountName = $currentAdmin['username'] ?? 'User';
 $accountEmail = $currentAdmin['email'] ?? '';
 $accountRole = $currentAdmin['role'] ?? '';
 
-// Fetch returned items data
-$query = "SELECT * FROM returned_items";
+// Fetch returned items data based on borrow_requests
+$query = "SELECT rr.username, rr.item_name, rr.return_date, rr.quantity, rr.item_condition, rr.notes, rr.status, rr.request_date 
+          FROM return_requests rr
+          INNER JOIN borrow_requests br ON rr.borrow_request_id = br.id
+          WHERE br.user_id = rr.user_id";
 $result = $conn->query($query);
 ?>
 
@@ -119,76 +122,22 @@ $result = $conn->query($query);
             </tr>
         </thead>
         <tbody id="item-table-body">
-            <tr>
-                <td>David Tan</td>
-                <td>Printer</td>
-                <td>2025-03-15</td>
-                <td>1</td>
-                <td>Good</td>
-                <td>Working well</td>
-                <td>Pending</td>
-                <td>2025-03-14</td>
-                <td>
-                    <button class="approve-btn">Approve</button>
-                    <button class="reject-btn">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>JM Montes</td>
-                <td>Projector</td>
-                <td>2025-03-16</td>
-                <td>1</td>
-                <td>Minor scratches</td>
-                <td>Still functional</td>
-                <td>Pending</td>
-                <td>2025-03-15</td>
-                <td>
-                    <button class="approve-btn">Approve</button>
-                    <button class="reject-btn">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Jamaica Mabazza</td>
-                <td>Tablet</td>
-                <td>2025-03-17</td>
-                <td>1</td>
-                <td>Good</td>
-                <td>Battery replaced</td>
-                <td>Pending</td>
-                <td>2025-03-16</td>
-                <td>
-                    <button class="approve-btn">Approve</button>
-                    <button class="reject-btn">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Jay Neri Gasilao</td>
-                <td>Mouse</td>
-                <td>2025-03-18</td>
-                <td>2</td>
-                <td>Excellent</td>
-                <td>No issues</td>
-                <td>Pending</td>
-                <td>2025-03-17</td>
-                <td>
-                    <button class="approve-btn">Approve</button>
-                    <button class="reject-btn">Reject</button>
-                </td>
-            </tr>
-            <tr>
-                <td>Crislyn Solero</td>
-                <td>Keyboard</td>
-                <td>2025-03-19</td>
-                <td>1</td>
-                <td>Good</td>
-                <td>Keys replaced</td>
-                <td>Pending</td>
-                <td>2025-03-18</td>
-                <td>
-                    <button class="approve-btn">Approve</button>
-                    <button class="reject-btn">Reject</button>
-                </td>
-            </tr>
+            <?php while ($row = $result->fetch_assoc()): ?>
+        <tr>
+            <td><?php echo htmlspecialchars($row['username']); ?></td>
+            <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+            <td><?php echo htmlspecialchars($row['return_date']); ?></td>
+            <td><?php echo htmlspecialchars($row['quantity']); ?></td>
+            <td><?php echo htmlspecialchars($row['item_condition']); ?></td>
+            <td><?php echo htmlspecialchars($row['notes']); ?></td>
+            <td><?php echo htmlspecialchars($row['status']); ?></td>
+            <td><?php echo htmlspecialchars($row['request_date']); ?></td>
+            <td>
+                <button class="approve-btn">Approve</button>
+                <button class="reject-btn">Reject</button>
+            </td>
+        </tr>
+    <?php endwhile; ?>
         </tbody>
     </table>
     <div class="pagination">

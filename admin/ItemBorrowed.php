@@ -25,8 +25,11 @@ if (empty($accountName)) {
     $accountName = 'Admin';
 }
 
-// Fetch borrowed items data
-$query = "SELECT * FROM borrowed_items";
+// Fetch borrow requests data
+$query = "SELECT br.request_id, u.username, i.item_name, i.item_type, br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, br.status, br.request_date 
+          FROM borrow_requests br
+          JOIN users u ON br.user_id = u.user_id
+          JOIN items i ON br.item_id = i.item_id";
 $result = $conn->query($query);
 
 // Restrict access and display the logged-in user's role
@@ -131,151 +134,24 @@ $accountRole = $loggedInUser['role'];
             </tr>
         </thead>
         <tbody id="item-table-body">
-    <!-- Sample Data (To be removed in backend implementation) -->
-    <tr>
-        <td>David Tan</td>
-        <td>Projector</td>
-        <td>Electronics</td>
-        <td>2025-03-20</td>
-        <td>2025-03-25</td>
-        <td>1</td>
-        <td>Presentation</td>
-        <td>Handle with care</td>
-        <td>Pending</td>
-        <td>2025-03-18</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>John Michael</td>
-        <td>Laptop</td>
-        <td>Electronics</td>
-        <td>2025-03-18</td>
-        <td>2025-03-23</td>
-        <td>1</td>
-        <td>Office Work</td>
-        <td>Requires charging</td>
-        <td>Pending</td>
-        <td>2025-03-16</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>Jamaica Mabazza</td>
-        <td>Tablet</td>
-        <td>Gadgets</td>
-        <td>2025-03-21</td>
-        <td>2025-03-27</td>
-        <td>1</td>
-        <td>Research</td>
-        <td>Screen protector applied</td>
-        <td>Pending</td>
-        <td>2025-03-19</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>Jay Neri Gasilao</td>
-        <td>Microphone</td>
-        <td>Audio Equipment</td>
-        <td>2025-03-22</td>
-        <td>2025-03-29</td>
-        <td>1</td>
-        <td>Event Hosting</td>
-        <td>Check battery level</td>
-        <td>Pending</td>
-        <td>2025-03-20</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>Crislyn Solero</td>
-        <td>Camera</td>
-        <td>Photography</td>
-        <td>2025-03-19</td>
-        <td>2025-03-24</td>
-        <td>1</td>
-        <td>Documentation</td>
-        <td>Lens checked</td>
-        <td>Pending</td>
-        <td>2025-03-17</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>Kate Solero</td>
-        <td>Speaker</td>
-        <td>Audio Equipment</td>
-        <td>2025-03-23</td>
-        <td>2025-03-28</td>
-        <td>1</td>
-        <td>Presentation</td>
-        <td>Volume tested</td>
-        <td>Pending</td>
-        <td>2025-03-21</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>Aezelle May Montes</td>
-        <td>Whiteboard</td>
-        <td>Office Supplies</td>
-        <td>2025-03-17</td>
-        <td>2025-03-22</td>
-        <td>1</td>
-        <td>Meeting</td>
-        <td>Cleaned before use</td>
-        <td>Pending</td>
-        <td>2025-03-15</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>Neri Añonuevo</td>
-        <td>Projector Screen</td>
-        <td>Presentation</td>
-        <td>2025-03-24</td>
-        <td>2025-03-30</td>
-        <td>1</td>
-        <td>Training Session</td>
-        <td>Folded properly</td>
-        <td>Pending</td>
-        <td>2025-03-22</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
-    <tr>
-        <td>Aaron Morales</td>
-        <td>Extension Cord</td>
-        <td>Electrical</td>
-        <td>2025-03-15</td>
-        <td>2025-03-20</td>
-        <td>1</td>
-        <td>Event Setup</td>
-        <td>Cable management applied</td>
-        <td>Pending</td>
-        <td>2025-03-13</td>
-        <td>
-            <button class="approve-btn">Approve</button>
-            <button class="reject-btn">Reject</button>
-        </td>
-    </tr>
+<?php while ($row = $result->fetch_assoc()): ?>
+<tr>
+    <td><?php echo htmlspecialchars($row['username']); ?></td>
+    <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+    <td><?php echo htmlspecialchars($row['item_type']); ?></td>
+    <td><?php echo htmlspecialchars($row['date_needed']); ?></td>
+    <td><?php echo htmlspecialchars($row['return_date']); ?></td>
+    <td><?php echo htmlspecialchars($row['quantity']); ?></td>
+    <td><?php echo htmlspecialchars($row['purpose']); ?></td>
+    <td><?php echo htmlspecialchars($row['notes']); ?></td>
+    <td><?php echo htmlspecialchars($row['status']); ?></td>
+    <td><?php echo htmlspecialchars($row['request_date']); ?></td>
+    <td>
+        <button class="approve-btn" data-request-id="<?php echo $row['request_id']; ?>">Approve</button>
+        <button class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
+    </td>
+</tr>
+<?php endwhile; ?>
 </tbody>
 
     </table>

@@ -611,7 +611,8 @@ body {
 }
 
 .delete-btn {
-    font-size: 12px; /* Smaller button text */
+    font-family: 'Akrobat', sans-serif;
+    font-size: 14px; /* Smaller button text */
     padding: 4px 8px; /* Less padding */
 }
 
@@ -657,11 +658,12 @@ body {
 }
 
 .deactivate-btn {
-    font-size: 12px; /* Smaller button text */
+    font-size: 14px; /* Smaller button text */
     padding: 4px 8px; /* Less padding */
 }
 
 .deactivate-btn {
+    font-family: 'Akrobat', sans-serif;
     font-size: 10px;
     padding: 4px 8px;
 }

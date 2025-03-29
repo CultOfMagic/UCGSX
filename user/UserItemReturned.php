@@ -2,11 +2,6 @@
 session_start();
 require_once 'db_connection.php'; // Include database connection
 
-// Check if the database connection is established
-if (!isset($db) || !$db) {
-    die("Database connection failed. Please contact the administrator.");
-}
-
 function getCurrentUser($db) {
     if (!isset($_SESSION['user_id'])) {
         header("Location: ../login/login.php");
@@ -20,15 +15,21 @@ function getCurrentUser($db) {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     $stmt->closeCursor();
 
-    return $user;
+    return $user ?: null; // Ensure null is returned if no user is found
 }
 
 $currentUser = getCurrentUser($db);
+if (!$currentUser) {
+    header("Location: ../login/login.php");
+    exit();
+}
+
 $accountName = htmlspecialchars($currentUser['name'] ?? 'User');
+$user_id = $_SESSION['user_id']; // Initialize $user_id from session
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate and sanitize inputs
-    $item_id = filter_input(INPUT_POST, 'item_id', FILTER_SANITIZE_NUMBER_INT);
+    $item_id = filter_input(INPUT_POST, 'item_id', FILTER_VALIDATE_INT);
     $item_category = filter_input(INPUT_POST, 'item_category', FILTER_SANITIZE_STRING);
     $quantity = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_INT);
     $return_date = filter_input(INPUT_POST, 'return_date', FILTER_SANITIZE_STRING);
@@ -150,12 +151,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="form-group">
                     <label for="condition">Condition of Item:</label>
-                    <input id="condition" name="condition" rows="3" required placeholder="Describe the condition of the item"></textarea>
+                    <textarea id="condition" name="condition" rows="3" required placeholder="Describe the condition of the item"></textarea>
                 </div>
 
                 <div class="form-group">
                     <label for="notes">Additional Notes:</label>
-                    <input id="notes" name="notes" rows="2" placeholder="Enter any additional notes (optional)"></textarea>
+                    <textarea id="notes" name="notes" rows="2" placeholder="Enter any additional notes (optional)"></textarea>
                 </div>
 
                 <div class="form-buttons">
@@ -167,5 +168,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
     <script src="../js/usereqs.js"></script>
+    <script>
+        // Sidebar dropdown functionality
+        document.querySelectorAll('.dropdown-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const dropdownContent = button.nextElementSibling;
+                dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
+            });
+        });
+
+        // Profile dropdown functionality
+        const userIcon = document.getElementById('userIcon');
+        const userDropdown = document.getElementById('userDropdown');
+        userIcon.addEventListener('click', () => {
+            userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+        });
+
+        // Close dropdown if clicked outside
+        document.addEventListener('click', (event) => {
+            if (!userIcon.contains(event.target) && !userDropdown.contains(event.target)) {
+                userDropdown.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
