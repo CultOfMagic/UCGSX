@@ -2,24 +2,26 @@
 include 'db_connection.php';
 session_start();
 
-// Verify User session
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
-    header("Location: ../login/login.php");
-    exit();
+function getCurrentUser($conn) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+        header("Location: ../login/login.php");
+        exit();
+    }
+
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    return $user;
 }
 
-// Fetch currently logged-in User details
-$currentUserId = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$result = $stmt->get_result();
-$currentUser = $result->fetch_assoc();
-$stmt->close();
-
-// Pass the current User details to the frontend
-$accountName = $currentUser['username'] ?? 'User';
-$accountEmail = $currentUser['email'] ?? '';
+$currentUser = getCurrentUser($conn);
+$accountName = htmlspecialchars($currentUser['username']);
+$accountEmail = htmlspecialchars($currentUser['email'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $itemCategory = $_POST['item_category'] ?? '';

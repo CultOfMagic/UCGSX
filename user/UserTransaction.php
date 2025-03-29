@@ -8,34 +8,69 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
     exit();
 }
 
-// Fetch logged-in user details
-$currentUserId = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$currentUser = $stmt->get_result()->fetch_assoc();
-$stmt->close();
+function getCurrentUser($conn) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+        header("Location: ../login/login.php");
+        exit();
+    }
 
-// Define accountName for displaying the username
-$accountName = $currentUser['username'] ?? 'User';
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT username, email, user_id FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
 
-// Fetch transactions for the logged-in user
-$transactionsQuery = "SELECT action, details, created_at, status FROM transactions WHERE user_id = ? ORDER BY created_at DESC";
-$transactionsStmt = $conn->prepare($transactionsQuery);
-$transactionsStmt->bind_param("i", $currentUserId);
-$transactionsStmt->execute();
-$transactionsResult = $transactionsStmt->get_result();
-$transactionsStmt->close();
+    if (!$user) {
+        // Handle case where user is not found in the database
+        header("Location: ../login/login.php");
+        exit();
+    }
+
+    return $user;
+}
+
+$currentUser = getCurrentUser($conn);
+$accountName = htmlspecialchars($currentUser['username'] ?? 'User');
+$currentUserId = $currentUser['user_id']; // Ensure this is properly set
+
+// Check if the 'requests' table exists
+$tableCheckQuery = "SHOW TABLES LIKE 'requests'";
+$tableCheckResult = $conn->query($tableCheckQuery);
+if ($tableCheckResult->num_rows === 0) {
+    die("Error: The 'requests' table does not exist in the database.");
+}
+
+// Fetch requests for the logged-in user
+$requestsQuery = "
+    SELECT 
+        request_type, 
+        details, 
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at, 
+        status 
+    FROM 
+        requests 
+    WHERE 
+        user_id = ? 
+    ORDER BY 
+        created_at DESC
+";
+$requestsStmt = $conn->prepare($requestsQuery);
+$requestsStmt->bind_param("i", $currentUserId); // Use the correct user ID
+$requestsStmt->execute();
+$requestsResult = $requestsStmt->get_result();
+$requestsStmt->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"="width=device-width, initial-scale=1.0">
     <meta name="description" content="UCGS Inventory Management System - User Transactions">
     <title>UCGS Inventory | User Transactions</title>
-    <link rel="stylesheet" href="../css/UserTransactions.css">
+    <link rel="stylesheet" href="../css/UserTransact.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
           integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
           crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -82,23 +117,23 @@ $transactionsStmt->close();
 </aside>
 
 <main class="main-content">
-    <h1>User Transactions</h1>
+    <h1>User Requests</h1> <!-- Updated title -->
     <table class="transaction-table">
         <thead>
             <tr>
-                <th>Action</th>
+                <th>Request Type</th> <!-- Updated column name -->
                 <th>Details</th>
                 <th>Date</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
-            <?php while ($transaction = $transactionsResult->fetch_assoc()): ?>
+            <?php while ($request = $requestsResult->fetch_assoc()): ?>
                 <tr>
-                    <td><?php echo htmlspecialchars($transaction['action']); ?></td>
-                    <td><?php echo htmlspecialchars($transaction['details']); ?></td>
-                    <td><?php echo htmlspecialchars($transaction['created_at']); ?></td>
-                    <td><?php echo htmlspecialchars($transaction['status']); ?></td>
+                    <td><?php echo htmlspecialchars($request['request_type']); ?></td>
+                    <td><?php echo htmlspecialchars($request['details']); ?></td>
+                    <td><?php echo htmlspecialchars($request['created_at']); ?></td>
+                    <td><?php echo htmlspecialchars($request['status']); ?></td>
                 </tr>
             <?php endwhile; ?>
         </tbody>

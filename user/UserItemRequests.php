@@ -2,22 +2,26 @@
 include 'db_connection.php';
 session_start();
 
-// Verify User session
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
-    header("Location: ../login/login.php");
-    exit();
+function getCurrentUser($conn) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+        header("Location: ../login/login.php");
+        exit();
+    }
+
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT username, email, ministry FROM users WHERE user_id = ? AND role = 'User'");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    return $user;
 }
 
-// Fetch logged-in user details
-$currentUserId = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ? AND role = 'User'");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$currentUser = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-// Define accountName for displaying the username
-$accountName = $currentUser['username'] ?? '';
+$currentUser = getCurrentUser($conn);
+$accountName = htmlspecialchars($currentUser['username'] ?? '');
+$userMinistry = htmlspecialchars($currentUser['ministry'] ?? '');
 
 // If user details are not found, redirect to login
 if (!$currentUser) {
@@ -54,42 +58,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($itemName) || empty($itemCategory) || $quantity <= 0 || empty($itemUnit) || empty($purpose)) {
             $errorMessage = 'All fields are required. Please fill out the form completely.';
         } else {
-            // Fetch item_id from the items table
-            $itemQuery = "SELECT item_id FROM items WHERE item_name = ? AND item_category = ?";
-            $itemStmt = $conn->prepare($itemQuery);
+            // Insert the new item request into the new_item_requests table
+            $insertQuery = "INSERT INTO new_item_requests (user_id, item_name, item_category, quantity, purpose, notes, status, ministry) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)";
+            $insertStmt = $conn->prepare($insertQuery);
 
-            if (!$itemStmt) {
+            if (!$insertStmt) {
                 $errorMessage = 'Database error: Unable to prepare statement.';
             } else {
-                $itemStmt->bind_param("ss", $itemName, $itemCategory);
-                $itemStmt->execute();
-                $itemResult = $itemStmt->get_result();
-                $item = $itemResult->fetch_assoc();
-                $itemStmt->close();
+                $insertStmt->bind_param("ississs", $userId, $itemName, $itemCategory, $quantity, $purpose, $notes, $userMinistry);
+                $insertStmt->execute();
 
-                if (!$item) {
-                    $errorMessage = 'The specified item does not exist in the inventory.';
+                if ($insertStmt->affected_rows > 0) {
+                    $successMessage = 'Your request has been submitted successfully and is pending admin approval.';
                 } else {
-                    $itemId = $item['item_id'];
-
-                    // Insert the new item request with status "Pending"
-                    $insertQuery = "INSERT INTO new_item_requests (user_id, item_id, item_name, item_category, quantity, purpose, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')";
-                    $insertStmt = $conn->prepare($insertQuery);
-
-                    if (!$insertStmt) {
-                        $errorMessage = 'Database error: Unable to prepare statement.';
-                    } else {
-                        $insertStmt->bind_param("iississ", $currentUserId, $itemId, $itemName, $itemCategory, $quantity, $purpose, $notes);
-                        $insertStmt->execute();
-
-                        if ($insertStmt->affected_rows > 0) {
-                            $successMessage = 'Your request has been submitted successfully and is pending admin approval.';
-                        } else {
-                            $errorMessage = 'Failed to submit your request. Please try again.';
-                        }
-                        $insertStmt->close();
-                    }
+                    $errorMessage = 'Failed to submit your request. Please try again.';
                 }
+                $insertStmt->close();
             }
         }
     }

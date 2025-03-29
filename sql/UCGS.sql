@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS new_item_requests (
     purpose TEXT NOT NULL,
     notes TEXT DEFAULT NULL,
     status ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
+    ministry ENUM('UCM', 'CWA', 'CHOIR', 'PWT', 'CYF') NOT NULL,
     request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

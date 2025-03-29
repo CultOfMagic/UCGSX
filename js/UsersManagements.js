@@ -1,30 +1,85 @@
 document.addEventListener("DOMContentLoaded", function () {
+    // Fix: Ensure dropdown state is properly saved and restored
     const dropdownArrows = document.querySelectorAll(".arrow-icon");
-
-    // Retrieve dropdown state from localStorage
     const savedDropdownState = JSON.parse(localStorage.getItem("dropdownState")) || {};
 
     dropdownArrows.forEach(arrow => {
-        let parent = arrow.closest(".dropdown");
-        let dropdownText = parent.querySelector(".text").innerText;
+        const parent = arrow.closest(".dropdown");
+        const dropdownText = parent.querySelector(".text").innerText;
 
-        // Apply saved state
         if (savedDropdownState[dropdownText]) {
             parent.classList.add("active");
         }
 
         arrow.addEventListener("click", function (event) {
-            event.stopPropagation(); // Prevent triggering the parent link
-            
-            let parent = this.closest(".dropdown");
-            let dropdownText = parent.querySelector(".text").innerText; // Update dropdownText inside the event listener
+            event.stopPropagation();
             parent.classList.toggle("active");
-
-            // Save the state in localStorage
             savedDropdownState[dropdownText] = parent.classList.contains("active");
             localStorage.setItem("dropdownState", JSON.stringify(savedDropdownState));
         });
     });
+
+    // Fix: Ensure modals are properly initialized and closed
+    const createAccountModal = document.getElementById("create-account-modal");
+    const deactivateModal = document.getElementById("deactivate-account-modal");
+
+    if (createAccountModal) {
+        document.getElementById("create-account-btn").addEventListener("click", () => {
+            createAccountModal.style.display = "block";
+        });
+        document.getElementById("cancel-btn").addEventListener("click", () => {
+            createAccountModal.style.display = "none";
+        });
+    }
+
+    if (deactivateModal) {
+        document.getElementById("deactivate-cancel-btn").addEventListener("click", () => {
+            deactivateModal.style.display = "none";
+        });
+    }
+
+    // Fix: Ensure table is dynamically updated
+    function updateTable() {
+        const tbody = document.getElementById("user-table-body");
+        tbody.innerHTML = ""; // Clear existing rows
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const paginatedUsers = users.slice(start, end);
+
+        paginatedUsers.forEach(user => {
+            const row = `<tr>
+                <td>${user.username}</td>
+                <td>${user.email}</td>
+                <td>${user.role}</td>
+                <td>${user.dateCreated}</td>
+                <td>${user.ministry}</td>
+                <td>${user.status}</td>
+                <td>
+                    <button class="delete-btn" onclick="deleteUser(${user.user_id})">Delete</button>
+                    <button class="deactivate-btn" onclick="openDeactivateModal(${user.user_id})">Deactivate</button>
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+        updatePagination();
+    }
+
+    // Fix: Ensure pagination works correctly
+    function updatePagination() {
+        document.getElementById("page-number").innerText = `Page ${currentPage}`;
+        document.getElementById("prev-btn").disabled = currentPage === 1;
+        document.getElementById("next-btn").disabled = currentPage >= Math.ceil(users.length / rowsPerPage);
+    }
+
+    // Fetch users on page load
+    fetch('UserManagement.php?fetchUsers=true')
+        .then(response => response.json())
+        .then(data => {
+            users = data;
+            updateTable();
+        })
+        .catch(error => console.error('Error fetching users:', error));
 });
 
 // Profile Dropdown
@@ -250,7 +305,6 @@ document.getElementById("account-form").addEventListener("submit", function(even
     formData.append('action', 'CREATE');
     formData.append('username', username);
     formData.append('email', email);
-    formData.append('password', password);
     formData.append('ministry', ministry);
     formData.append('role', role);
     formData.append('status', role);
@@ -308,7 +362,6 @@ function updateTable() {
         let row = `<tr>
             <td>${user.username}</td>
             <td>${user.email}</td>
-            <td>********</td>
             <td>${user.role}</td>
             <td>${user.dateCreated}</td>
             <td>${user.ministry}</td>

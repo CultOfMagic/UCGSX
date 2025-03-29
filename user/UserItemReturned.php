@@ -7,24 +7,24 @@ if (!isset($db) || !$db) {
     die("Database connection failed. Please contact the administrator.");
 }
 
-// Ensure the user is logged in
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login/login.php");
-    exit;
-}
+function getCurrentUser($db) {
+    if (!isset($_SESSION['user_id'])) {
+        header("Location: ../login/login.php");
+        exit();
+    }
 
-$user_id = $_SESSION['user_id']; // Get the logged-in user's ID
-
-// Fetch the logged-in user's name securely
-try {
+    $userId = $_SESSION['user_id'];
     $stmt = $db->prepare("SELECT name FROM users WHERE id = :id");
-    $stmt->bindParam(':id', $user_id, PDO::PARAM_INT);
+    $stmt->bindParam(':id', $userId, PDO::PARAM_INT);
     $stmt->execute();
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    $accountName = $user ? htmlspecialchars($user['name']) : "User";
-} catch (PDOException $e) {
-    $accountName = "User"; // Fallback in case of an error
+    $stmt->closeCursor();
+
+    return $user;
 }
+
+$currentUser = getCurrentUser($db);
+$accountName = htmlspecialchars($currentUser['name'] ?? 'User');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate and sanitize inputs

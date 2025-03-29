@@ -2,24 +2,27 @@
 session_start();
 include 'db_connection.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
-    header("Location: ../login/login.php");
-    exit();
+function getCurrentUser($conn) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+        header("Location: ../login/login.php");
+        exit();
+    }
+
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT username, email, role FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    return $user;
 }
 
-// Fetch currently logged-in user details
-$currentUserId = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, email, role FROM users WHERE user_id = ?");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$result = $stmt->get_result();
-$currentUser = $result->fetch_assoc();
-$stmt->close();
-
-// Pass the current user details to the frontend
-$accountName = $currentUser['username'] ?? 'User';
-$accountEmail = $currentUser['email'] ?? '';
-$accountRole = $currentUser['role'] ?? '';
+$currentUser = getCurrentUser($conn);
+$accountName = htmlspecialchars($currentUser['username'] ?? 'User');
+$accountEmail = htmlspecialchars($currentUser['email'] ?? '');
+$accountRole = htmlspecialchars($currentUser['role'] ?? '');
 
 try {
     // Fetch the total number of users (if needed for user role)

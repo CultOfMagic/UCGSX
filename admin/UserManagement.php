@@ -182,27 +182,15 @@ $accountRole = $loggedInUser['role'];
         <tr>
             <th>Username / Account Name</th>
             <th>Email</th>
-            <th>Password</th>
             <th>Role</th>
             <th>Date Creation</th>
             <th>Ministry</th>
             <th>Status</th>
             <th>Actions</th>
         </tr>
-        <tr data-user-id="<?php echo $user['user_id']; ?>">
-            <td><?php echo htmlspecialchars($user['username']); ?></td>
-            <td><?php echo htmlspecialchars($user['email']); ?></td>
-            <td><?php echo htmlspecialchars($user['role']); ?></td>
-            <td><?php echo htmlspecialchars($user['ministry']); ?></td>
-            <td><?php echo htmlspecialchars($user['status']); ?></td>
-            <td>
-                <button class="delete-btn" onclick="deleteUser(<?php echo $user['user_id']; ?>)">Delete</button>
-                <button class="deactivate-btn" onclick="openDeactivateModal(<?php echo $user['user_id']; ?>)">Deactivate</button>
-            </td>
-        </tr>
-                <button class="deactivate-btn" onclick="openDeactivateModal(<?php echo $user['user_id']; ?>)">Deactivate</button>
-            </td>
-        </tr>
+    </thead>
+    <tbody id="user-table-body">
+        <!-- Rows will be dynamically populated by JavaScript -->
     </tbody>
 </table>
 

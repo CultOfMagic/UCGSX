@@ -30,36 +30,40 @@ if (!$conn || $conn->connect_error) {
 $userId = filter_var($_SESSION['user_id'], FILTER_VALIDATE_INT);
 
 // Fetch user data securely
-$query = "SELECT username, email, role, ministry, status FROM users WHERE user_id = ?";
-$stmt = $conn->prepare($query);
+function getCurrentUser($conn) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+        header("Location: ../login/login.php");
+        exit();
+    }
 
-if (!$stmt) {
-    error_log("Database query error: " . $conn->error);
-    header("Location: ../error.php");
-    exit();
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT username, email, role, ministry, status FROM users WHERE user_id = ?");
+    if (!$stmt) {
+        error_log("Database query error: " . $conn->error);
+        header("Location: ../error.php");
+        exit();
+    }
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$user || $user['status'] !== 'Active') {
+        session_destroy();
+        header("Location: ../login/login.php?error=account_inactive");
+        exit();
+    }
+
+    return $user;
 }
 
-$stmt->bind_param("i", $userId);
-$stmt->execute();
-$stmt->store_result();
-
-// Verify user exists and is active
-if ($stmt->num_rows === 0) {
-    session_destroy();
-    header("Location: ../login/login.php?error=account_not_found");
-    exit();
-}
-
-$stmt->bind_result($username, $email, $role, $ministry, $status);
-$stmt->fetch();
-$stmt->close();
-
-// Check account status
-if ($status !== 'Active') {
-    session_destroy();
-    header("Location: ../login/login.php?error=account_inactive");
-    exit();
-}
+$currentUser = getCurrentUser($conn);
+$accountName = htmlspecialchars($currentUser['username']);
+$email = htmlspecialchars($currentUser['email']);
+$role = htmlspecialchars($currentUser['role']);
+$ministry = htmlspecialchars($currentUser['ministry']);
+$status = htmlspecialchars($currentUser['status']);
 
 // Updated functions using mysqli consistently
 function getPendingRequestsCount($mysqli, $userId) {

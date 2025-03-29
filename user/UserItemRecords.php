@@ -8,22 +8,24 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
     exit();
 }
 
-// Fetch currently logged-in User details
-$currentUserId = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
-if (!$stmt) {
-    die("Database error: " . $conn->error);
-}
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$result = $stmt->get_result();
-if (!$result) {
-    die("Database error: " . $stmt->error);
-}
-$currentUser = $result->fetch_assoc();
-$stmt->close();
+function getCurrentUser($conn) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+        header("Location: ../login/login.php");
+        exit();
+    }
 
-// Pass the current User details to the frontend
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    return $user;
+}
+
+$currentUser = getCurrentUser($conn);
 $accountName = htmlspecialchars($currentUser['username'] ?? 'User');
 $accountEmail = htmlspecialchars($currentUser['email'] ?? '');
 
