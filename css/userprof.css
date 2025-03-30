@@ -60,6 +60,19 @@ body {
     letter-spacing: 1px;
 }
 
+h3 {
+    display: block;
+    font-size: 1.17em;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+    unicode-bidi: isolate;
+    font-family: 'Akrobat', sans-serif;
+}
+
+
 .profile-form {
     max-width: 500px;
     margin: 0 auto;
@@ -88,6 +101,8 @@ body {
     font-weight: 600;
     color: #333;
     font-size: 1rem;
+    font-family: 'Akrobat', sans-serif; /* Added font-family for consistency */
+
 }
 
 .profile-form input {
@@ -122,6 +137,8 @@ body {
     font-size: 1rem;
     cursor: pointer;
     transition: background 0.3s ease;
+    font-family: 'Akrobat', sans-serif;
+
 }
 
 .profile-form .btn:hover {
@@ -345,20 +362,14 @@ body {
     display: flex;
     align-items: center;
     gap: 8px; /* Space between icon and text */
+    font-family: 'Akrobat', sans-serif; /* Added font-family for consistency */
+
 }
 
 /* User Icon */
 .user .icon {
     width: 30px;
     height: 30px;
-}
-
-/* Admin Text */
-.admin-text {
-    font-size: 14px;
-    font-weight: bold;
-    color: #333;
-    font-family: 'Akrobat', sans-serif; /* Added font-family for consistency */
 }
 
 /* Dropdown Menu */
@@ -992,6 +1003,7 @@ table th {
 
 /* Admin Profile Form */
 .admin-profile-form {
+    
     display: flex;
     flex-direction: column;
     align-items: center;

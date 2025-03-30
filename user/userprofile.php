@@ -135,7 +135,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </ul>
     </aside>
 
-    <div class="main-content">
         <h2 class="profile-title">User Profile</h2>
             <form class="profile-form" method="POST">
             <div class="form-row">
@@ -159,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <button type="submit" class="btn save-btn">Save Changes</button>
         </form>
-    </div>
+   
 
     <script src="../js/userprof.js"></script>
     <script>

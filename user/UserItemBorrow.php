@@ -10,13 +10,16 @@ function getCurrentUser($conn) {
 
     $userId = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+    if (!$stmt) {
+        die('Database error: ' . $conn->error);
+    }
     $stmt->bind_param("i", $userId);
     $stmt->execute();
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
     $stmt->close();
 
-    return $user;
+    return $user ?: [];
 }
 
 $currentUser = getCurrentUser($conn);
@@ -24,13 +27,13 @@ $accountName = htmlspecialchars($currentUser['username']);
 $accountEmail = htmlspecialchars($currentUser['email'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $itemCategory = $_POST['item_category'] ?? '';
-    $itemId = $_POST['item_id'] ?? '';
-    $quantity = $_POST['quantity'] ?? '';
+    $itemCategory = htmlspecialchars($_POST['item_category'] ?? '');
+    $itemId = intval($_POST['item_id'] ?? 0);
+    $quantity = intval($_POST['quantity'] ?? 0);
     $dateNeeded = $_POST['date_needed'] ?? '';
     $returnDate = $_POST['return_date'] ?? '';
-    $purpose = $_POST['purpose'] ?? '';
-    $notes = $_POST['notes'] ?? '';
+    $purpose = htmlspecialchars($_POST['purpose'] ?? '');
+    $notes = htmlspecialchars($_POST['notes'] ?? '');
     $userId = $_SESSION['user_id'] ?? null;
 
     // Validate required fields
@@ -38,23 +41,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die('All required fields must be filled out.');
     }
 
-    // Use prepared statements to prevent SQL injection
-    $stmt = $conn->prepare("INSERT INTO borrow_requests (user_id, item_category, item_id, quantity, date_needed, return_date, purpose, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    // Validate quantity
+    if ($quantity <= 0) {
+        die('Quantity must be a positive number.');
+    }
+
+    // Validate dates
+    if (strtotime($dateNeeded) === false || strtotime($returnDate) === false) {
+        die('Invalid date format.');
+    }
+    if (strtotime($dateNeeded) > strtotime($returnDate)) {
+        die('Return date must be after the date needed.');
+    }
+
+    // Fetch item details
+    $itemCheckStmt = $conn->prepare("SELECT item_name, quantity FROM items WHERE item_id = ?");
+    if (!$itemCheckStmt) {
+        die('Database error: ' . $conn->error);
+    }
+    $itemCheckStmt->bind_param("i", $itemId);
+    $itemCheckStmt->execute();
+    $itemResult = $itemCheckStmt->get_result();
+    $itemData = $itemResult->fetch_assoc();
+    $itemCheckStmt->close();
+
+    if (!$itemData || $itemData['quantity'] < $quantity) {
+        die('Insufficient item quantity available.');
+    }
+
+    $itemName = htmlspecialchars($itemData['item_name']);
+
+    // Insert borrow request
+    $stmt = $conn->prepare("INSERT INTO borrow_requests (user_id, item_id, quantity, date_needed, return_date, purpose, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')");
     if (!$stmt) {
         die('Database error: ' . $conn->error);
     }
-    $stmt->bind_param("ississss", $userId, $itemCategory, $itemId, $quantity, $dateNeeded, $returnDate, $purpose, $notes);
+    $stmt->bind_param("iiissss", $userId, $itemId, $quantity, $dateNeeded, $returnDate, $purpose, $notes);
     $success = $stmt->execute();
 
     if ($success) {
+        // Deduct the borrowed quantity from the items table
+        $updateItemStmt = $conn->prepare("UPDATE items SET quantity = quantity - ? WHERE item_id = ?");
+        if (!$updateItemStmt) {
+            die('Database error: ' . $conn->error);
+        }
+        $updateItemStmt->bind_param("ii", $quantity, $itemId);
+        $updateItemStmt->execute();
+        $updateItemStmt->close();
+
         // Save transaction history
-        $transactionQuery = "INSERT INTO transactions (user_id, action, details) VALUES (?, 'Borrow Item Request', ?)";
+        $transactionQuery = "INSERT INTO transactions (user_id, action, details, item_id, quantity, status, item_name) VALUES (?, 'Borrow', ?, ?, ?, 'Pending', ?)";
         $transactionStmt = $conn->prepare($transactionQuery);
         if (!$transactionStmt) {
             die('Database error: ' . $conn->error);
         }
-        $details = "Borrowed $quantity of item ID $itemId in $itemCategory category.";
-        $transactionStmt->bind_param("is", $userId, $details);
+        $details = "Borrowed $quantity of item '$itemName' in $itemCategory category.";
+        $transactionStmt->bind_param("isiss", $userId, $details, $itemId, $quantity, $itemName);
         $transactionStmt->execute();
         $transactionStmt->close();
 
@@ -65,6 +107,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $stmt->close();
 } 
+
+// Fetch items based on category for dynamic population
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
+    $category = $_GET['item_category'];
+    $stmt = $conn->prepare("SELECT item_id, item_name FROM items WHERE item_category = ? AND quantity > 0");
+    $stmt->bind_param("s", $category);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $items = [];
+    while ($row = $result->fetch_assoc()) {
+        $items[] = $row;
+    }
+    $stmt->close();
+    header('Content-Type: application/json');
+    echo json_encode($items);
+    exit();
+}
 ?>
 
 <!DOCTYPE html>

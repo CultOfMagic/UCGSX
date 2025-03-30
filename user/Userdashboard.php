@@ -66,8 +66,9 @@ $ministry = htmlspecialchars($currentUser['ministry']);
 $status = htmlspecialchars($currentUser['status']);
 
 // Updated functions using mysqli consistently
+// Updated function to fetch pending requests count from 'new_item_requests'
 function getPendingRequestsCount($mysqli, $userId) {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM requests WHERE user_id = ? AND status = 'Pending'");
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM new_item_requests WHERE user_id = ? AND request_status = 'Pending'");
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return 0;
@@ -80,8 +81,9 @@ function getPendingRequestsCount($mysqli, $userId) {
     return $count;
 }
 
+// Updated function to fetch borrowed items count from 'borrow_requests'
 function getBorrowedItemsCount($mysqli, $userId) {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM borrow_requests WHERE user_id = ? AND borrow_status = 'Borrowed'");
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return 0;
@@ -94,8 +96,9 @@ function getBorrowedItemsCount($mysqli, $userId) {
     return $count;
 }
 
+// Updated function to fetch recent transactions count from 'return_requests'
 function getRecentTransactionsCount($mysqli, $userId) {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM transactions WHERE user_id = ?");
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM return_requests WHERE user_id = ?");
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return 0;
@@ -139,6 +142,37 @@ function getUserNotifications($mysqli, $userId) {
     $stmt->close();
     return $notifications;
 }
+
+// Check if the 'requests' table exists and create it if missing
+function ensureTableExists($mysqli, $tableName) {
+    $query = "SHOW TABLES LIKE ?";
+    $stmt = $mysqli->prepare($query);
+    $stmt->bind_param("s", $tableName);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $exists = $result->num_rows > 0;
+    $stmt->close();
+
+    if (!$exists) {
+        $createQuery = "
+            CREATE TABLE $tableName (
+                request_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                item_name VARCHAR(255) NOT NULL,
+                request_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                request_status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            ) ENGINE=InnoDB;
+        ";
+        if (!$mysqli->query($createQuery)) {
+            error_log("Failed to create table '$tableName': " . $mysqli->error);
+            echo "<p>Error: Unable to create the '$tableName' table. Please contact the administrator.</p>";
+            exit();
+        }
+    }
+}
+
+ensureTableExists($conn, 'requests');
 
 // Fetch additional data for the dashboard
 $totalItems = getTotalItemsCount($conn);
@@ -242,7 +276,7 @@ $notifications = getUserNotifications($conn, $userId);
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT request_id, item_name, request_date, status FROM requests WHERE user_id = ? AND status = 'Pending'");
+                    $stmt = $conn->prepare("SELECT request_id, item_name, request_date, request_status FROM new_item_requests WHERE user_id = ? AND request_status = 'Pending'");
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -251,7 +285,7 @@ $notifications = getUserNotifications($conn, $userId);
                                 <td>" . htmlspecialchars($row['request_id']) . "</td>
                                 <td>" . htmlspecialchars($row['item_name']) . "</td>
                                 <td>" . htmlspecialchars($row['request_date']) . "</td>
-                                <td>" . htmlspecialchars($row['status']) . "</td>
+                                <td>" . htmlspecialchars($row['request_status']) . "</td>
                               </tr>";
                     }
                     $stmt->close();
@@ -271,7 +305,7 @@ $notifications = getUserNotifications($conn, $userId);
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT item_id, item_name, borrow_date, return_date FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+                    $stmt = $conn->prepare("SELECT item_id, item_name, borrow_date, return_date FROM borrow_requests WHERE user_id = ? AND borrow_status = 'Borrowed'");
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -299,7 +333,7 @@ $notifications = getUserNotifications($conn, $userId);
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT transaction_id, details, date FROM transactions WHERE user_id = ?");
+                    $stmt = $conn->prepare("SELECT transaction_id, details, date FROM return_requests WHERE user_id = ?");
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();

@@ -28,19 +28,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? null;
     $role = $_POST['role'] ?? null;
     $ministry = $_POST['ministry'] ?? null;
-    $status = $_POST['status'] ?? null;
+    $status = $_POST['status'] ?? 'Active'; // Default status to 'Active'
 
     if ($action === 'CREATE') {
         if ($password) {
             $hashedPassword = password_hash($password, PASSWORD_BCRYPT); // Hash the password
         }
 
+        // Validate required fields
+        if (!$username || !$email || !$password || !$role || !$ministry) {
+            echo json_encode(['success' => false, 'error' => 'All fields are required.']);
+            exit;
+        }
+
+        // Check if the role is 'Administrator' and limit to 5 administrators
+        if ($role === 'Administrator') {
+            $stmt = $conn->prepare("SELECT COUNT(*) AS admin_count FROM users WHERE role = 'Administrator'");
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $adminCount = $result->fetch_assoc()['admin_count'];
+            $stmt->close();
+
+            if ($adminCount >= 5) {
+                echo json_encode(['success' => false, 'error' => 'Administrator creation limit exceeded.']);
+                exit;
+            }
+        }
+
         $stmt = $conn->prepare("INSERT INTO users (username, email, password, role, ministry, status) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("ssssss", $username, $email, $hashedPassword, $role, $ministry, $status);
-        $stmt->execute();
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'user_id' => $conn->insert_id]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Failed to create account.']);
+        }
         $stmt->close();
-
-        echo json_encode(['success' => true, 'user_id' => $conn->insert_id]);
         exit;
     }
 

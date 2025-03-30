@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Table and Pagination
     function updateTable() {
         const tbody = document.getElementById("user-table-body");
-        tbody.innerHTML = "";
+        tbody.innerHTML = ""; // Clear the table before adding rows
 
         const start = (currentPage - 1) * rowsPerPage;
         const end = start + rowsPerPage;
@@ -67,9 +67,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     <button class="deactivate-btn" onclick="openDeactivateModal(${user.user_id})">Deactivate</button>
                 </td>
             </tr>`;
-            tbody.innerHTML += row;
+            tbody.insertAdjacentHTML('beforeend', row); // Use insertAdjacentHTML for better performance
         });
-        updatePagination();
+
+        updatePagination(); // Update pagination after table update
     }
 
     function updatePagination() {
@@ -266,7 +267,7 @@ function updateTable() {
                 <button class="deactivate-btn" onclick="openDeactivateModal(${user.user_id})">Deactivate</button>
             </td>
         </tr>`;
-        tbody.innerHTML += row;
+        tbody.insertAdjacentHTML('beforeend', row); // Use insertAdjacentHTML for better performance
     });
     updatePagination();
 }

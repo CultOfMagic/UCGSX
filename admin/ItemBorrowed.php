@@ -26,11 +26,15 @@ if (empty($accountName)) {
 }
 
 // Fetch borrow requests data
-$query = "SELECT br.request_id, u.username, i.item_name, i.item_type, br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, br.status, br.request_date 
+$query = "SELECT br.request_id AS request_id, u.username, i.item_name, i.item_type, br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, br.status, br.request_date 
           FROM borrow_requests br
           JOIN users u ON br.user_id = u.user_id
           JOIN items i ON br.item_id = i.item_id";
 $result = $conn->query($query);
+
+if (!$result) {
+    die("Error executing query: " . $conn->error);
+}
 
 // Restrict access and display the logged-in user's role
 $loggedInUser = getLoggedInUser($conn);

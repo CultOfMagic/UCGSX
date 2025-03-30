@@ -2,8 +2,9 @@
 // Include database connection with error handling
 include 'db_connection.php';
 
+// Improved error handling for database connection
 if (!$conn) {
-    die("Database connection failed: " . mysqli_connect_error());
+    die("Database connection failed: " . htmlspecialchars(mysqli_connect_error()));
 }
 
 session_start();
@@ -17,7 +18,7 @@ function getCurrentUser($conn) {
     $userId = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT username, email, ministry FROM users WHERE user_id = ? AND role = 'User'");
     if (!$stmt) {
-        die("Database error: " . $conn->error);
+        die("Database error: " . htmlspecialchars($conn->error));
     }
     $stmt->bind_param("i", $userId);
     $stmt->execute();
@@ -62,8 +63,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $purpose = htmlspecialchars(trim($_POST['purpose'] ?? ''));
         $notes = isset($_POST['notes']) ? htmlspecialchars(trim($_POST['notes'])) : null;
 
-        if (empty($itemName) || empty($itemCategory) || $quantity <= 0 || empty($itemUnit) || empty($purpose)) {
-            $errorMessage = 'All fields are required. Please fill out the form completely.';
+        // Enhanced validation
+        if (empty($itemName) || strlen($itemName) > 255) {
+            $errorMessage = 'Item Name is required and must not exceed 255 characters.';
+        } elseif (empty($itemCategory)) {
+            $errorMessage = 'Item Category is required.';
+        } elseif ($quantity === false || $quantity <= 0) {
+            $errorMessage = 'Quantity must be a positive integer.';
+        } elseif (empty($itemUnit)) {
+            $errorMessage = 'Item Unit is required.';
+        } elseif (empty($purpose) || strlen($purpose) > 500) {
+            $errorMessage = 'Purpose is required and must not exceed 500 characters.';
         } else {
             // Check if the item already exists in the new_item_requests table
             $checkQuery = "SELECT COUNT(*) AS count FROM new_item_requests WHERE item_name = ? AND user_id = ? AND status = 'Pending'";
@@ -91,15 +101,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $errorMessage = 'Failed to submit your request. Please try again.';
                             }
                         } else {
-                            $errorMessage = 'Database error: ' . $insertStmt->error;
+                            $errorMessage = 'Database error: ' . htmlspecialchars($insertStmt->error);
                         }
                         $insertStmt->close();
                     } else {
-                        $errorMessage = 'Database error: Unable to prepare statement. ' . $conn->error;
+                        $errorMessage = 'Database error: Unable to prepare statement. ' . htmlspecialchars($conn->error);
                     }
                 }
             } else {
-                $errorMessage = 'Database error: Unable to prepare statement. ' . $conn->error;
+                $errorMessage = 'Database error: Unable to prepare statement. ' . htmlspecialchars($conn->error);
             }
         }
     }

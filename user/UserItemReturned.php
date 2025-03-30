@@ -1,31 +1,33 @@
 <?php
 session_start();
-require_once 'db_connection.php'; // Include database connection
+include 'db_connection.php'; // Include database connection
 
 function getCurrentUser($db) {
     if (!isset($_SESSION['user_id'])) {
+        // Redirect to login if no user is logged in
         header("Location: ../login/login.php");
         exit();
     }
 
     $userId = $_SESSION['user_id'];
-    $stmt = $db->prepare("SELECT name FROM users WHERE id = :id");
-    $stmt->bindParam(':id', $userId, PDO::PARAM_INT);
-    $stmt->execute();
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stmt->closeCursor();
+    try {
+        // Fetch the user's details from the database
+        $stmt = $db->prepare("SELECT id, name FROM users WHERE id = :id");
+        $stmt->bindParam(':id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
 
-    return $user ?: null; // Ensure null is returned if no user is found
+        return $user ?: null; // Return null if no user is found
+    } catch (PDOException $e) {
+        // Handle database errors
+        die("Error fetching user: " . htmlspecialchars($e->getMessage()));
+    }
 }
 
-$currentUser = getCurrentUser($db);
-if (!$currentUser) {
-    header("Location: ../login/login.php");
-    exit();
-}
 
 $accountName = htmlspecialchars($currentUser['name'] ?? 'User');
-$user_id = $_SESSION['user_id']; // Initialize $user_id from session
+$user_id = $currentUser['id']; // Use the fetched user ID
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate and sanitize inputs
@@ -71,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="header-content">
             <div class="left-side">
                 <img src="../assets/img/Logo.png" alt="UCGS Inventory Logo" class="logo">
-                <span class="website-name">UCGS Inventory | Return Item Request</span>
+                <span class="website-name">UCGS Inventory</span>
             </div>
             <div class="right-side">
                 <div class="user">

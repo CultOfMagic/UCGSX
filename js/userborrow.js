@@ -46,62 +46,48 @@ document.addEventListener("DOMContentLoaded", function () {
 
 document.getElementById('requestForm').addEventListener('submit', function(event) {
     const itemId = document.getElementById('item-id').value;
-    const quantity = document.getElementById('quantity').value;
+    const quantity = parseInt(document.getElementById('quantity').value, 10);
     const dateNeeded = document.getElementById('date_needed').value;
     const returnDate = document.getElementById('return_date').value;
 
     if (!itemId || !quantity || !dateNeeded || !returnDate) {
         alert('Please fill out all required fields.');
         event.preventDefault();
+        return;
+    }
+
+    if (quantity <= 0 || isNaN(quantity)) {
+        alert('Quantity must be a positive number.');
+        event.preventDefault();
+        return;
+    }
+
+    if (new Date(dateNeeded) > new Date(returnDate)) {
+        alert('Return date must be after the date needed.');
+        event.preventDefault();
+        return;
     }
 });
 
 document.getElementById('item-category').addEventListener('change', function () {
     const category = this.value;
     const itemDropdown = document.getElementById('item-id');
-    itemDropdown.innerHTML = '<option value="" disabled selected>Select an Item</option>'; // Reset items
 
-    // Example items based on category
-    const items = {
-        electronics: [
-            { id: 1, name: 'Laptop (Available: 10)' },
-            { id: 2, name: 'Projector (Available: 5)' }
-        ],
-        furniture: [
-            { id: 3, name: 'Chair (Available: 20)' },
-            { id: 4, name: 'Table (Available: 15)' }
-        ],
-        stationery: [
-            { id: 5, name: 'Notebook (Available: 50)' },
-            { id: 6, name: 'Pen (Available: 100)' }
-        ]
-    };
+    // Clear existing options
+    itemDropdown.innerHTML = '<option value="" disabled selected>Select an Item</option>';
 
-    // Populate items based on selected category
-    if (items[category]) {
-        items[category].forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = item.name;
-            itemDropdown.appendChild(option);
-        });
+    if (category) {
+        fetch(`UserItemBorrow.php?item_category=${encodeURIComponent(category)}`)
+            .then(response => response.json())
+            .then(items => {
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.item_id;
+                    option.textContent = item.item_name;
+                    itemDropdown.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching items:', error));
     }
 });
 
-document.addEventListener("DOMContentLoaded", function () {
-    fetch('UserTransaction.php?action=borrow')
-        .then(response => response.json())
-        .then(data => {
-            const transactionTable = document.getElementById('transaction-table-body');
-            transactionTable.innerHTML = '';
-            data.forEach(transaction => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${transaction.date}</td>
-                    <td>${transaction.details}</td>
-                `;
-                transactionTable.appendChild(row);
-            });
-        })
-        .catch(error => console.error('Error fetching transaction history:', error));
-});
