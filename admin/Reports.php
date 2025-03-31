@@ -233,6 +233,6 @@ if (isset($_GET['download'])) {
         </div>
     </div>
 
-    <script src="../js/reports.js"></script>
+    <script src="../js/report.js"></script>
 </body>
 </html>

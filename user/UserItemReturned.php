@@ -2,60 +2,47 @@
 session_start();
 include 'db_connection.php'; // Include database connection
 
-function getCurrentUser($db) {
-    if (!isset($_SESSION['user_id'])) {
-        // Redirect to login if no user is logged in
+// Verify User session
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+function getCurrentUser($conn) {
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
         header("Location: ../login/login.php");
         exit();
     }
 
     $userId = $_SESSION['user_id'];
-    try {
-        // Fetch the user's details from the database
-        $stmt = $db->prepare("SELECT id, name FROM users WHERE id = :id");
-        $stmt->bindParam(':id', $userId, PDO::PARAM_INT);
-        $stmt->execute();
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        $stmt->closeCursor();
-
-        return $user ?: null; // Return null if no user is found
-    } catch (PDOException $e) {
-        // Handle database errors
-        die("Error fetching user: " . htmlspecialchars($e->getMessage()));
+    $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+    if (!$stmt) {
+        die("Database error: " . $conn->error);
     }
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    return $user ?: ['username' => 'User', 'email' => ''];
 }
 
+$currentUser = getCurrentUser($conn);
+$accountName = htmlspecialchars($currentUser['username']);
+$accountEmail = htmlspecialchars($currentUser['email']);
 
-$accountName = htmlspecialchars($currentUser['name'] ?? 'User');
-$user_id = $currentUser['id']; // Use the fetched user ID
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validate and sanitize inputs
-    $item_id = filter_input(INPUT_POST, 'item_id', FILTER_VALIDATE_INT);
-    $item_category = filter_input(INPUT_POST, 'item_category', FILTER_SANITIZE_STRING);
-    $quantity = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_INT);
-    $return_date = filter_input(INPUT_POST, 'return_date', FILTER_SANITIZE_STRING);
-    $condition = filter_input(INPUT_POST, 'condition', FILTER_SANITIZE_STRING);
-    $notes = filter_input(INPUT_POST, 'notes', FILTER_SANITIZE_STRING);
-
-    if ($item_id && $item_category && $quantity && $return_date && $condition) {
-        try {
-            // Prepare SQL query to insert return request
-            $stmt = $db->prepare("INSERT INTO item_returns (user_id, item_id, category, quantity, return_date, item_condition, notes) VALUES (?, ?, ?, ?, ?, ?, ?)");
-
-            if ($stmt->execute([$user_id, $item_id, $item_category, $quantity, $return_date, $condition, $notes])) {
-                $success_message = "Return request submitted successfully.";
-            } else {
-                $error_message = "Failed to submit return request. Please try again.";
-            }
-        } catch (PDOException $e) {
-            $error_message = "An error occurred: " . htmlspecialchars($e->getMessage());
-        }
-    } else {
-        $error_message = "Please fill in all required fields.";
+// Fetch approved borrow requests
+$approved_items = [];
+$sql = "SELECT id, item_name FROM borrow_requests WHERE status = 'approved'";
+$result = $conn->query($sql);
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $approved_items[] = $row;
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -122,7 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="item-id">Select Item:</label>
                         <select id="item-id" name="item_id" required>
                             <option value="" disabled selected>Select an Item</option>
-                            <!-- Items will be dynamically populated based on category -->
+                            <?php foreach ($approved_items as $item): ?>
+                                <option value="<?php echo htmlspecialchars($item['id']); ?>">
+                                    <?php echo htmlspecialchars($item['item_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="form-group">

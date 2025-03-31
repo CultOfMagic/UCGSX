@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS reports (
 
 -- Create Borrow Requests Table
 CREATE TABLE IF NOT EXISTS borrow_requests (
-    borrow_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY, -- Changed request_id to id
     user_id INT NOT NULL,
     item_id INT NOT NULL,
     quantity INT NOT NULL,
@@ -75,9 +75,6 @@ CREATE TABLE IF NOT EXISTS borrow_requests (
     transaction_id INT DEFAULT NULL,
     UNIQUE (user_id, item_id, status, date_needed)
 );
-
-ALTER TABLE borrow_requests
-ADD COLUMN request_id INT AUTO_INCREMENT UNIQUE AFTER borrow_id;
 
 -- Create Return Requests Table
 CREATE TABLE IF NOT EXISTS return_requests (

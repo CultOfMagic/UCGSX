@@ -44,6 +44,95 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+//design for content
+document.addEventListener("DOMContentLoaded", function() {
+    const chartConfigs = [
+        { id: "chart1", type: "bar", data: [3, 6, 4, 8, 5] },
+        { id: "chart2", type: "doughnut", data: [2, 3, 4] },
+        { id: "chart3", type: "line", data: [1, 4, 2, 5, 3] },
+        { id: "chart4", type: "bar", data: [5, 2, 3, 4, 6], horizontal: true }
+    ];
+    
+    chartConfigs.forEach(config => {
+        new Chart(document.getElementById(config.id).getContext('2d'), {
+            type: config.type,
+            data: {
+                labels: ["A", "B", "C", "D", "E"],
+                datasets: [{
+                    data: config.data,
+                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    borderColor: "white",
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                indexAxis: config.horizontal ? 'y' : 'x',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { display: false }, y: { display: false } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    });
+    
+    new Chart(document.getElementById("mainChart").getContext("2d"), {
+        type: "bar",
+        data: {
+            labels: ["Users", "Approved Requests", "Pending Request", "Total Items"],
+            datasets: [{
+                label: "Overview",
+                data: [150, 300, 200, 500],
+                backgroundColor: ["#f7971e", "#ff416c", "#00b09b", "#6a11cb"],
+                borderColor: "white",
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } }
+        }
+    });
+});
+
+// recent items
+document.addEventListener("DOMContentLoaded", function() {
+    const chartConfigs = [
+        { id: "chart1", type: "bar", data: [3, 6, 4, 8, 5], color: ["#6a11cb", "#2575fc"] },
+        { id: "chart2", type: "doughnut", data: [2, 3, 4], color: ["#00b09b", "#96c93d"] },
+        { id: "chart3", type: "line", data: [1, 4, 2, 5, 3], color: ["#ff416c", "#ff4b2b"] },
+        { id: "chart4", type: "bar", data: [5, 2, 3, 4, 6], color: ["#f7971e", "#ffd200"], horizontal: true }
+    ];
+    
+    chartConfigs.forEach(config => {
+        new Chart(document.getElementById(config.id).getContext('2d'), {
+            type: config.type,
+            data: {
+                labels: ["A", "B", "C", "D", "E"],
+                datasets: [{
+                    data: config.data,
+                    backgroundColor: config.color,
+                    borderColor: "white",
+                    borderWidth: 1,
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                indexAxis: config.horizontal ? 'y' : 'x',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { display: false }, y: { display: false } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    });
+});
+
 // action buttons
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -112,37 +201,4 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
-});
-
-// Overview Chart
-document.addEventListener("DOMContentLoaded", function() {
-    fetch('/api/dashboard-overview')
-        .then(response => response.json())
-        .then(data => {
-            // Display total items count
-            const totalItemsElement = document.getElementById("totalItemsCount");
-            if (totalItemsElement) {
-                totalItemsElement.innerText = data.totalItems;
-            }
-
-            new Chart(document.getElementById("mainChart").getContext("2d"), {
-                type: "bar",
-                data: {
-                    labels: ["Users", "Approved Requests", "Pending Request", "Total Items"],
-                    datasets: [{
-                        label: "Overview",
-                        data: [data.users, data.approvedRequests, data.pendingRequests, data.totalItems],
-                        backgroundColor: ["#f7971e", "#ff416c", "#00b09b", "#6a11cb"],
-                        borderColor: "white",
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: true } }
-                }
-            });
-        })
-        .catch(error => console.error("Error fetching dashboard overview data:", error));
 });

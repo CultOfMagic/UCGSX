@@ -116,7 +116,6 @@ $result = $conn->query($query);
                 <th>Quantity</th>
                 <th>Unit</th>
                 <th>Status</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -130,10 +129,6 @@ $result = $conn->query($query);
                         <td><?php echo $row['quantity']; ?></td>
                         <td><?php echo $row['unit']; ?></td>
                         <td><?php echo $row['status']; ?></td>
-                        <td>
-                            <button onclick="approveRequest(<?php echo $row['id']; ?>)">Approve</button>
-                            <button onclick="rejectRequest(<?php echo $row['id']; ?>)">Reject</button>
-                        </td>
                     </tr>
                 <?php endwhile; ?>
             <?php else: ?>
@@ -155,35 +150,5 @@ $result = $conn->query($query);
 </div>
 
 <script src="../js/summary.js"></script>
-<script>
-function approveRequest(requestId) {
-    if (confirm("Are you sure you want to approve this request?")) {
-        fetch('processRequest.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'approve', requestId })
-        }).then(response => response.json())
-          .then(data => {
-              alert(data.message);
-              location.reload();
-          });
-    }
-}
-
-function rejectRequest(requestId) {
-    const reason = prompt("Please provide a reason for rejection:");
-    if (reason) {
-        fetch('processRequest.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'reject', requestId, reason })
-        }).then(response => response.json())
-          .then(data => {
-              alert(data.message);
-              location.reload();
-          });
-    }
-}
-</script>
 </body>
 </html>

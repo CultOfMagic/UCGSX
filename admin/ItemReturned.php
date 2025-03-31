@@ -22,12 +22,15 @@ $accountName = $currentAdmin['username'] ?? 'User';
 $accountEmail = $currentAdmin['email'] ?? '';
 $accountRole = $currentAdmin['role'] ?? '';
 
-// Fetch returned items data based on borrow_requests
-$query = "SELECT rr.username, rr.item_name, rr.return_date, rr.quantity, rr.item_condition, rr.notes, rr.status, rr.request_date 
-          FROM return_requests rr
-          INNER JOIN borrow_requests br ON rr.borrow_request_id = br.id
-          WHERE br.user_id = rr.user_id";
+// Fetch returned items data
+$query = "SELECT r.id AS return_id, r.item_id, r.return_date, i.item_name 
+          FROM returns r 
+          JOIN items i ON r.item_id = i.id"; // Ensure 'returns' table has 'id' column
 $result = $conn->query($query);
+
+if (!$result) {
+    die("Error executing query: " . $conn->error);
+}
 ?>
 
 

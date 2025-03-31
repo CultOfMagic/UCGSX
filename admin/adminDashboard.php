@@ -92,85 +92,92 @@ try {
             <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
         </ul>
     </aside>
-
-    <body>
+    <main class="main-container">
     <h4 class="overview-title">OVERVIEW</h4>
-    <div class="main-content">
-        <div class="dashboard-overview">
+    <div class="dashboard-overview">
         <div class="card gradient-yellow">
-                <i class="fa-solid fa-user"></i>
+            <i class="fa-solid fa-user"></i>
                 <h2>Users</h2>
                 <p><?php echo htmlspecialchars($userCount); ?></p>
                 <canvas id="chart1" class="chart-container"></canvas>
             </div>
-            <div class="card gradient-orange">
-                <i class="fa-solid fa-check-circle"></i>
-                <h2>Approved Requests</h2>
-                <p>300</p>
-                <canvas id="chart2" class="chart-container"></canvas>
-            </div>
-            <div class="card gradient-green">
-                <i class="fa-solid fa-clock"></i>
-                <h2>Pending Requests</h2>
-                <p>200</p>
-                <canvas id="chart3" class="chart-container"></canvas>
-            </div>
-            <div class="card gradient-purple">
-                <i class="fa-solid fa-list"></i>
-                <h2>Total Items</h2>
-                <p>500</p>
-                <canvas id="chart4" class="chart-container"></canvas>
-            </div>
+        <div class="card gradient-orange">
+            <i class="fa-solid fa-check-circle"></i>
+            <h2>Approved Requests</h2>
+            <p>300</p>
+            <canvas id="chart2" class="chart-container"></canvas>
         </div>
-        <div class="main-content">
-        <div class="table-container">
-            <h2>Recent Items</h2>
-            <table>
-                <tr>
-                    <th>Item Name</th>
-                    <th>Description</th>
-                    <th>Model No.</th>
-                    <th>Expiration</th>
-                    <th>Brand</th>
-                    <th>Quantity</th>
-                    <th>Actions</th>
-                </tr>
-                <tr>
-                    <td>Printer Ink</td>
-                    <td>Black Ink Cartridge</td>
-                    <td>HP123</td>
-                    <td>N/A</td>
-                    <td>HP</td>
-                    <td>20</td>
-                    <td><button class="btn view" onclick="openModal('viewModal')">View</button></td>
-                </tr>
-            </table>
-        </div>
-        <div class="table-container">
+        <div class="card gradient-green">
+            <i class="fa-solid fa-clock"></i>
             <h2>Pending Requests</h2>
-            <table>
-                <tr>
-                    <th>Username</th>
-                    <th>Requested Item Name</th>
-                    <th>Item Category</th>
-                    <th>Request Date</th>
-                    <th>Quantity</th>
-                    <th>Actions</th>
-                </tr>
-                <tr>
-                    <td>JohnDoe</td>
-                    <td>Printer Ink</td>
-                    <td>Office Supplies</td>
-                    <td>2025-03-19</td>
-                    <td>2</td>
-                    <td>
-                        <button class="btn approve" onclick="openModal('approveModal')">Approve</button>
-                        <button class="btn reject" onclick="openModal('rejectModal')">Reject</button>
-                    </td>
-                </tr>
-            </table>
+            <p>200</p>
+            <canvas id="chart3" class="chart-container"></canvas>
+        </div>
+        <div class="card gradient-purple">
+            <i class="fa-solid fa-list"></i>
+            <h2>Total Items</h2>
+            <p>500</p>
+            <canvas id="chart4" class="chart-container"></canvas>
         </div>
     </div>
+    
+    <!-- Moved main chart container here -->
+    <div class="main-chart-container">
+        <canvas id="mainChart"></canvas>
+    </div>
+    
+        
+        <div class="tables-section">
+            <div class="table-container">
+                <h2>Recent Items</h2>
+                <table>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Description</th>
+                        <th>Model No.</th>
+                        <th>Expiration</th>
+                        <th>Brand</th>
+                        <th>Quantity</th>
+                        <th>Actions</th>
+                    </tr>
+                    <tr>
+                        <td>Printer Ink</td>
+                        <td>Black Ink Cartridge</td>
+                        <td>HP123</td>
+                        <td>N/A</td>
+                        <td>HP</td>
+                        <td>20</td>
+                        <td><button class="btn view" onclick="openModal('viewModal')">View</button></td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="table-container">
+                <h2>Pending Requests</h2>
+                <table>
+                    <tr>
+                        <th>Username</th>
+                        <th>Requested Item Name</th>
+                        <th>Item Category</th>
+                        <th>Request Date</th>
+                        <th>Quantity</th>
+                        <th>Actions</th>
+                    </tr>
+                    <tr>
+                        <td>JohnDoe</td>
+                        <td>Printer Ink</td>
+                        <td>Office Supplies</td>
+                        <td>2025-03-19</td>
+                        <td>2</td>
+                        <td>
+                            <button class="btn approve" onclick="openModal('approveModal')">Approve</button>
+                            <button class="btn reject" onclick="openModal('rejectModal')">Reject</button>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </main>
     <div id="viewModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('viewModal')">&times;</span>
@@ -202,6 +209,6 @@ try {
         </div>
     </div>
 
-    <script src="../js/admind.js"></script>
+    <script src="../js/admindash.js"></script>
 </body>
 </html>

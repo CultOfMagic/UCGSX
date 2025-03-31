@@ -45,22 +45,85 @@ if ($tableCheckResult->num_rows === 0) {
 // Fetch requests for the logged-in user
 $requestsQuery = "
     SELECT 
-        request_type, 
-        details, 
-        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at, 
-        status 
-    FROM 
-        requests 
-    WHERE 
-        user_id = ? 
-    ORDER BY 
-        created_at DESC
+        borrow_requests.user_id, 
+        borrow_requests.item_id, 
+        borrow_requests.quantity, 
+        borrow_requests.date_needed, 
+        borrow_requests.return_date, 
+        borrow_requests.purpose, 
+        borrow_requests.notes, 
+        borrow_requests.status, 
+        items.item_name 
+    FROM borrow_requests 
+    JOIN items ON borrow_requests.item_id = items.item_id 
+    WHERE borrow_requests.user_id = ?
 ";
 $requestsStmt = $conn->prepare($requestsQuery);
 $requestsStmt->bind_param("i", $currentUserId); // Use the correct user ID
 $requestsStmt->execute();
 $requestsResult = $requestsStmt->get_result();
 $requestsStmt->close();
+
+// Fetch new item requests for the logged-in user
+$newRequestsQuery = "
+    SELECT 
+        new_item_requests.quantity, 
+        new_item_requests.request_date AS date_requested, 
+        new_item_requests.status, 
+        new_item_requests.item_name 
+    FROM new_item_requests 
+    WHERE new_item_requests.user_id = ?
+";
+$newRequestsStmt = $conn->prepare($newRequestsQuery);
+$newRequestsStmt->bind_param("i", $currentUserId);
+$newRequestsStmt->execute();
+$newRequestsResult = $newRequestsStmt->get_result();
+$newRequestsStmt->close();
+
+// Correct the SQL query to reference valid columns
+$sql = "
+    SELECT 
+        borrow_requests.id AS borrow_id, -- Adjusted column name to 'id'
+        borrow_requests.item_name,
+        borrow_requests.quantity AS borrow_quantity,
+        borrow_requests.status AS borrow_status,
+        return_requests.id AS return_id,
+        return_requests.return_date,
+        return_requests.condition AS return_condition
+    FROM 
+        borrow_requests
+    LEFT JOIN 
+        return_requests ON borrow_requests.id = return_requests.borrow_request_id -- Adjusted join condition
+    WHERE 
+        borrow_requests.user_id = ?
+";
+
+// Prepare and execute the query
+$stmt = $conn->prepare($sql);
+if (!$stmt) {
+    die("Database error: " . $conn->error);
+}
+$stmt->bind_param("i", $_SESSION['user_id']);
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Fetch returned item requests for the logged-in user
+$returnedRequestsQuery = "
+    SELECT 
+        return_requests.quantity, 
+        return_requests.date_returned, 
+        return_requests.status, 
+        items.item_name 
+    FROM return_requests 
+    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.id 
+    JOIN items ON borrow_requests.item_id = items.item_id 
+    WHERE borrow_requests.user_id = ?
+";
+$returnedRequestsStmt = $conn->prepare($returnedRequestsQuery);
+$returnedRequestsStmt->bind_param("i", $currentUserId);
+$returnedRequestsStmt->execute();
+$returnedRequestsResult = $returnedRequestsStmt->get_result();
+$returnedRequestsStmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -117,23 +180,49 @@ $requestsStmt->close();
 </aside>
 
 <main class="main-content">
-    <h1>User Requests</h1> <!-- Updated title -->
+    <h1>User Requests</h1>
     <table class="transaction-table">
         <thead>
             <tr>
-                <th>Request Type</th> <!-- Updated column name -->
-                <th>Details</th>
+                <th>Request Type</th>
+                <th>Item Name</th>
+                <th>Quantity</th>
                 <th>Date</th>
+                <th>Additional Info</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
             <?php while ($request = $requestsResult->fetch_assoc()): ?>
                 <tr>
-                    <td><?php echo htmlspecialchars($request['request_type']); ?></td>
-                    <td><?php echo htmlspecialchars($request['details']); ?></td>
-                    <td><?php echo htmlspecialchars($request['created_at']); ?></td>
+                    <td>Borrow</td>
+                    <td><?php echo htmlspecialchars($request['item_name']); ?></td>
+                    <td><?php echo htmlspecialchars($request['quantity']); ?></td>
+                    <td><?php echo htmlspecialchars($request['date_needed']); ?></td>
+                    <td>Return Date: <?php echo htmlspecialchars($request['return_date']); ?><br>Purpose: <?php echo htmlspecialchars($request['purpose']); ?><br>Notes: <?php echo htmlspecialchars($request['notes']); ?></td>
                     <td><?php echo htmlspecialchars($request['status']); ?></td>
+                </tr>
+            <?php endwhile; ?>
+
+            <?php while ($newRequest = $newRequestsResult->fetch_assoc()): ?>
+                <tr>
+                    <td>New Item</td>
+                    <td><?php echo htmlspecialchars($newRequest['item_name']); ?></td>
+                    <td><?php echo htmlspecialchars($newRequest['quantity']); ?></td>
+                    <td><?php echo htmlspecialchars($newRequest['date_requested']); ?></td>
+                    <td>--</td>
+                    <td><?php echo htmlspecialchars($newRequest['status']); ?></td>
+                </tr>
+            <?php endwhile; ?>
+
+            <?php while ($returnedRequest = $returnedRequestsResult->fetch_assoc()): ?>
+                <tr>
+                    <td>Returned</td>
+                    <td><?php echo htmlspecialchars($returnedRequest['item_name']); ?></td>
+                    <td><?php echo htmlspecialchars($returnedRequest['quantity']); ?></td>
+                    <td><?php echo htmlspecialchars($returnedRequest['date_returned']); ?></td>
+                    <td>--</td>
+                    <td><?php echo htmlspecialchars($returnedRequest['status']); ?></td>
                 </tr>
             <?php endwhile; ?>
         </tbody>

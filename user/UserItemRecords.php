@@ -16,18 +16,21 @@ function getCurrentUser($conn) {
 
     $userId = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+    if (!$stmt) {
+        die("Database error: " . $conn->error);
+    }
     $stmt->bind_param("i", $userId);
     $stmt->execute();
     $result = $stmt->get_result();
     $user = $result->fetch_assoc();
     $stmt->close();
 
-    return $user;
+    return $user ?: ['username' => 'User', 'email' => ''];
 }
 
 $currentUser = getCurrentUser($conn);
-$accountName = htmlspecialchars($currentUser['username'] ?? 'User');
-$accountEmail = htmlspecialchars($currentUser['email'] ?? '');
+$accountName = htmlspecialchars($currentUser['username']);
+$accountEmail = htmlspecialchars($currentUser['email']);
 
 // Pagination logic
 $itemsPerPage = 10; // Number of items per page
@@ -46,9 +49,11 @@ $totalItems = $totalItemsRow['total'] ?? 0;
 // Calculate total pages
 $totalPages = ceil($totalItems / $itemsPerPage);
 
-// Fetch items for the current page
+// Calculate offset for pagination
 $offset = ($page - 1) * $itemsPerPage;
-$query = "SELECT * FROM items WHERE deleted_at IS NULL LIMIT ?, ?";
+
+// Fetch items for the current page (exclude 'item_no')
+$query = "SELECT item_name, description, quantity, unit, status, last_updated, model_no, item_category, item_location FROM items WHERE deleted_at IS NULL LIMIT ?, ?";
 $stmt = $conn->prepare($query);
 if (!$stmt) {
     die("Database error: " . $conn->error);
@@ -137,7 +142,6 @@ echo "<script>const itemsData = " . json_encode($items) . ";</script>";
         <table class="item-table">
             <thead>
                 <tr>
-                    <th>Item No</th>
                     <th>Item Name</th>
                     <th>Description</th>
                     <th>Quantity</th>
@@ -150,24 +154,24 @@ echo "<script>const itemsData = " . json_encode($items) . ";</script>";
                 </tr>
             </thead>
             <tbody id="item-table-body">
-                <?php if ($result->num_rows > 0): ?>
-                    <?php while ($row = $result->fetch_assoc()): ?>
+                <?php if (!empty($items)): ?>
+                    <?php foreach ($items as $row): ?>
                         <tr>
-                            <td><?= htmlspecialchars($row['item_no']) ?></td>
-                            <td><?= htmlspecialchars($row['item_name']) ?></td>
-                            <td><?= htmlspecialchars($row['description']) ?></td>
-                            <td><?= htmlspecialchars($row['quantity']) ?></td>
-                            <td><?= htmlspecialchars($row['unit']) ?></td>
-                            <td><?= htmlspecialchars($row['status']) ?></td>
-                            <td><?= htmlspecialchars($row['last_updated']) ?></td>
-                            <td><?= htmlspecialchars($row['model_no']) ?></td>
-                            <td><?= htmlspecialchars($row['item_category']) ?></td>
-                            <td><?= htmlspecialchars($row['item_location']) ?></td>
+                            
+                            <td><?= $row['item_name'] ?></td>
+                            <td><?= $row['description'] ?></td>
+                            <td><?= $row['quantity'] ?></td>
+                            <td><?= $row['unit'] ?></td>
+                            <td><?= $row['status'] ?></td>
+                            <td><?= $row['last_updated'] ?></td>
+                            <td><?= $row['model_no'] ?></td>
+                            <td><?= $row['item_category'] ?></td>
+                            <td><?= $row['item_location'] ?></td>
                         </tr>
-                    <?php endwhile; ?>
+                    <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="12">No records found.</td>
+                        <td colspan="9">No records found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>

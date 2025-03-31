@@ -145,13 +145,9 @@ function getUserNotifications($mysqli, $userId) {
 
 // Check if the 'requests' table exists and create it if missing
 function ensureTableExists($mysqli, $tableName) {
-    $query = "SHOW TABLES LIKE ?";
-    $stmt = $mysqli->prepare($query);
-    $stmt->bind_param("s", $tableName);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $exists = $result->num_rows > 0;
-    $stmt->close();
+    $query = "SHOW TABLES LIKE '$tableName'";
+    $result = $mysqli->query($query);
+    $exists = $result && $result->num_rows > 0;
 
     if (!$exists) {
         $createQuery = "
@@ -350,10 +346,6 @@ $notifications = getUserNotifications($conn, $userId);
             </table>
         </div>
     </div>
-
-    <footer>
-        <p>&copy; <?= date('Y') ?> UCGS Inventory. All rights reserved.</p>
-    </footer>
 
     <script src="../js/userecords.js"></script>
     <script>

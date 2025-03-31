@@ -8,6 +8,23 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
     exit();
 }
 
+// Check if the getLoggedInUser function is already defined
+if (!function_exists('getLoggedInUser')) {
+    function getLoggedInUser($conn) {
+        if (!isset($_SESSION['user_id'])) {
+            return null;
+        }
+        $userId = $_SESSION['user_id'];
+        $stmt = $conn->prepare("SELECT username, role FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+        $stmt->close();
+        return $user;
+    }
+}
+
 // Fetch currently logged-in admin details
 $currentAdminId = $_SESSION['user_id'];
 $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
@@ -25,17 +42,6 @@ if (empty($accountName)) {
     $accountName = 'Admin';
 }
 
-// Fetch borrow requests data
-$query = "SELECT br.request_id AS request_id, u.username, i.item_name, i.item_type, br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, br.status, br.request_date 
-          FROM borrow_requests br
-          JOIN users u ON br.user_id = u.user_id
-          JOIN items i ON br.item_id = i.item_id";
-$result = $conn->query($query);
-
-if (!$result) {
-    die("Error executing query: " . $conn->error);
-}
-
 // Restrict access and display the logged-in user's role
 $loggedInUser = getLoggedInUser($conn);
 if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
@@ -45,6 +51,15 @@ if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
 
 $accountName = $loggedInUser['username'];
 $accountRole = $loggedInUser['role'];
+
+// Fetch borrow requests from the database
+$query = "SELECT br.id AS request_id, u.username, br.item_name, br.item_type, br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, br.status, br.request_date 
+          FROM borrow_requests br 
+          JOIN users u ON br.user_id = u.user_id";
+$result = $conn->query($query);
+if (!$result) {
+    die("Error fetching borrow requests: " . $conn->error);
+}
 ?>
 
 <!DOCTYPE html>
