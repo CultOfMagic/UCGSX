@@ -34,6 +34,13 @@ document.addEventListener("DOMContentLoaded", function () {
     userIcon.addEventListener("click", function (event) {
         event.stopPropagation(); // Prevent closing when clicking inside
         userDropdown.classList.toggle("show");
+
+        // Close other dropdowns if open
+        document.querySelectorAll(".user-dropdown").forEach(dropdown => {
+            if (dropdown !== userDropdown) {
+                dropdown.classList.remove("show");
+            }
+        });
     });
 
     // Close dropdown when clicking outside

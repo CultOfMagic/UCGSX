@@ -24,41 +24,29 @@ document.addEventListener("DOMContentLoaded", function () {
             localStorage.setItem("dropdownState", JSON.stringify(savedDropdownState));
         });
     });
+});
 
-    // Modal logic
-    const viewButtons = document.querySelectorAll(".view-btn");
-    const modal = document.getElementById("viewModal");
-    const modalContent = document.getElementById("transactionDetails");
-    const closeModal = document.querySelector(".close-btn");
+// Profile Dropdown
+document.addEventListener("DOMContentLoaded", function () {
+    const userIcon = document.getElementById("userIcon");
+    const userDropdown = document.getElementById("userDropdown");
 
-    viewButtons.forEach(button => {
-        button.addEventListener("click", function () {
-            const details = this.getAttribute("data-details");
-            modalContent.textContent = details;
-            modal.style.display = "block";
+    userIcon.addEventListener("click", function (event) {
+        event.stopPropagation(); // Prevent closing when clicking inside
+        userDropdown.classList.toggle("show");
+
+        // Close other dropdowns if open
+        document.querySelectorAll(".user-dropdown").forEach(dropdown => {
+            if (dropdown !== userDropdown) {
+                dropdown.classList.remove("show");
+            }
         });
     });
 
-    closeModal.addEventListener("click", function () {
-        modal.style.display = "none";
-    });
-
-    window.addEventListener("click", function (event) {
-        if (event.target === modal) {
-            modal.style.display = "none";
+    // Close dropdown when clicking outside
+    document.addEventListener("click", function (event) {
+        if (!userIcon.contains(event.target) && !userDropdown.contains(event.target)) {
+            userDropdown.classList.remove("show");
         }
     });
 });
-
-  // Close dropdown when clicking outside
-  window.onclick = function(event) {
-    if (!event.target.matches('#userIcon')) {
-        const dropdowns = document.getElementsByClassName('user-dropdown');
-        for (let i = 0; i < dropdowns.length; i++) {
-            const openDropdown = dropdowns[i];
-            if (openDropdown.classList.contains('show')) {
-                openDropdown.classList.remove('show');
-            }
-        }
-    }
-}

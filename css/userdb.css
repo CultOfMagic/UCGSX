@@ -100,7 +100,7 @@ body {
     position: fixed;
     top: 100px;
     left: 0;
-    display: fixed;
+    display: flex;
     flex-direction: column;
     padding-top: 10px;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
