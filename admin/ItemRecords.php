@@ -1,10 +1,27 @@
 <?php
 session_start();
-include 'db_connection.php';
+include '../config/db_connection.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
     header("Location: ../login/login.php");
     exit();
+}
+
+// Define the getLoggedInUser function
+function getLoggedInUser($conn) {
+    if (!isset($_SESSION['user_id'])) {
+        return null;
+    }
+
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT * FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    return $user;
 }
 
 // Fetch currently logged-in admin details
@@ -39,6 +56,94 @@ if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
 
 $accountName = $loggedInUser['username'];
 $accountRole = $loggedInUser['role'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['create-item'])) {
+        // Handle item creation
+        $itemNo = $_POST['item_no'] ?? null;
+        $itemName = $_POST['item_name'] ?? null;
+        $description = $_POST['description'] ?? null;
+        $quantity = $_POST['quantity'] ?? null;
+        $unit = $_POST['unit'] ?? null;
+        $status = $_POST['status'] ?? null;
+        $modelNo = $_POST['model_no'] ?? null;
+        $itemCategory = $_POST['item_category'] ?? null;
+        $itemLocation = $_POST['item_location'] ?? null;
+
+        // Validate required fields
+        if (!$itemNo || !$itemName || !$quantity || !$status) {
+            echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
+            exit();
+        }
+
+        // Insert the new item into the database
+        $stmt = $conn->prepare("INSERT INTO items (item_no, item_name, description, quantity, unit, status, model_no, item_category, item_location, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->bind_param("ssissssss", $itemNo, $itemName, $description, $quantity, $unit, $status, $modelNo, $itemCategory, $itemLocation);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Item created successfully.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to create item.']);
+        }
+
+        $stmt->close();
+        exit();
+    }
+
+    if (isset($_POST['delete-item'])) {
+        // Handle item deletion
+        $itemNo = $_POST['item_no'] ?? null;
+
+        if (!$itemNo) {
+            echo json_encode(['success' => false, 'message' => 'Item number is required for deletion.']);
+            exit();
+        }
+
+        $stmt = $conn->prepare("DELETE FROM items WHERE item_no = ?");
+        $stmt->bind_param("s", $itemNo);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Item deleted successfully.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to delete item.']);
+        }
+
+        $stmt->close();
+        exit();
+    }
+
+    if (isset($_POST['update-item'])) {
+        // Handle item update
+        $itemNo = $_POST['item_no'] ?? null;
+        $itemName = $_POST['item_name'] ?? null;
+        $description = $_POST['description'] ?? null;
+        $quantity = $_POST['quantity'] ?? null;
+        $unit = $_POST['unit'] ?? null;
+        $status = $_POST['status'] ?? null;
+        $modelNo = $_POST['model_no'] ?? null;
+        $itemCategory = $_POST['item_category'] ?? null;
+        $itemLocation = $_POST['item_location'] ?? null;
+
+        // Validate required fields
+        if (!$itemNo || !$itemName || !$quantity || !$status) {
+            echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
+            exit();
+        }
+
+        // Prepare and execute the update query
+        $stmt = $conn->prepare("UPDATE items SET item_name = ?, description = ?, quantity = ?, unit = ?, status = ?, model_no = ?, item_category = ?, item_location = ?, last_updated = NOW() WHERE item_no = ?");
+        $stmt->bind_param("ssisssssi", $itemName, $description, $quantity, $unit, $status, $modelNo, $itemCategory, $itemLocation, $itemNo);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Item updated successfully.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to update item.']);
+        }
+
+        $stmt->close();
+        exit();
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -49,6 +154,12 @@ $accountRole = $loggedInUser['role'];
     <title>UCGS Inventory | Item Records</title>
     <link rel="stylesheet" href="../css/records.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Hide modals by default */
+        .modal {
+            display: none;
+        }
+    </style>
 </head>
 
 <body>
@@ -126,12 +237,12 @@ $accountRole = $loggedInUser['role'];
             <thead>
                 <tr>
                     <th>Select All <input type="checkbox" class="select-all" onclick="toggleSelectAll(this)"></th>
-                    <th>Item No</th>
                     <th>Item Name</th>
                     <th>Description</th>
                     <th>Quantity</th>
                     <th>Unit</th>
                     <th>Status</th>
+                    <th>Expiration</th>
                     <th>Last Updated</th>
                     <th>Model No</th>
                     <th>Item Category</th>
@@ -146,12 +257,12 @@ $accountRole = $loggedInUser['role'];
                     <?php while ($row = $result->fetch_assoc()): ?>
                         <tr>
                             <td><input type="checkbox" class="select-item"></td>
-                            <td><?= htmlspecialchars($row['item_no']) ?></td>
                             <td><?= htmlspecialchars($row['item_name']) ?></td>
                             <td><?= htmlspecialchars($row['description']) ?></td>
                             <td><?= htmlspecialchars($row['quantity']) ?></td>
                             <td><?= htmlspecialchars($row['unit']) ?></td>
                             <td><?= htmlspecialchars($row['status']) ?></td>
+                            <td><?= htmlspecialchars($row['expiration']) ?></td>
                             <td><?= htmlspecialchars($row['last_updated']) ?></td>
                             <td><?= htmlspecialchars($row['model_no']) ?></td>
                             <td><?= htmlspecialchars($row['item_category']) ?></td>

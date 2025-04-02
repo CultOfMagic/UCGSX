@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'db_connection.php'; // Include database connection
+include '../config/db_connection.php'; // Include database connection
 
 // Verify User session
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {

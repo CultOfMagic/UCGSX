@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS items (
     supplier VARCHAR(50),
     price_per_item DECIMAL(10,2),
     deleted_at DATETIME DEFAULT NULL,
-    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Example inserts for the items table
@@ -190,7 +191,8 @@ CREATE TABLE IF NOT EXISTS new_item_requests (
     notes TEXT DEFAULT NULL,
     status ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
     ministry ENUM('UCM', 'CWA', 'CHOIR', 'PWT', 'CYF') NOT NULL,
-    request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Add foreign key relationships with cascading actions
@@ -248,3 +250,19 @@ CREATE INDEX idx_items_item_category ON items(item_category);
 CREATE INDEX idx_items_item_location ON items(item_location);
 CREATE INDEX idx_return_requests_status ON return_requests(status);
 CREATE INDEX idx_user_requests_status ON user_requests(status);
+
+-- Modify Items Table to ensure all necessary fields are present
+ALTER TABLE items
+ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER item_id,
+ADD COLUMN updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+
+-- Modify Items Table to rename updated_at to last_updated
+ALTER TABLE items
+CHANGE COLUMN updated_at last_updated DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP;
+
+-- Ensure indexes for frequently queried columns
+CREATE INDEX idx_items_item_no ON items(item_no);
+CREATE INDEX idx_items_item_name ON items(item_name);
+CREATE INDEX idx_items_status ON items(status);
+CREATE INDEX idx_items_item_category ON items(item_category);
+CREATE INDEX idx_items_item_location ON items(item_location);

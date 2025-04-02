@@ -1,6 +1,6 @@
 <?php
 session_start();
-include '../user/db_connection.php';
+include '../config/db_connection.php';
 
 $error = '';
 $email = '';

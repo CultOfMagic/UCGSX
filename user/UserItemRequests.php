@@ -1,6 +1,6 @@
 <?php
 // Include database connection with error handling
-include 'db_connection.php';
+include '../config/db_connection.php';
 
 // Improved error handling for database connection
 if (!$conn) {
@@ -96,6 +96,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $insertStmt->bind_param("ississss", $_SESSION['user_id'], $itemName, $itemCategory, $quantity, $itemUnit, $purpose, $notes, $userMinistry);
                         if ($insertStmt->execute()) {
                             if ($insertStmt->affected_rows > 0) {
+                                // Log the transaction in the transactions table
+                                $transactionQuery = "INSERT INTO transactions (user_id, action, item_name, quantity, created_at) VALUES (?, 'New Item Request', ?, ?, NOW())";
+                                $transactionStmt = $conn->prepare($transactionQuery);
+
+                                if ($transactionStmt) {
+                                    $transactionStmt->bind_param("isi", $_SESSION['user_id'], $itemName, $quantity);
+                                    $transactionStmt->execute();
+                                    $transactionStmt->close();
+                                } else {
+                                    $errorMessage = 'Transaction logging failed: ' . htmlspecialchars($conn->error);
+                                }
+
                                 $successMessage = 'Your request has been submitted successfully and is pending admin approval.';
                             } else {
                                 $errorMessage = 'Failed to submit your request. Please try again.';

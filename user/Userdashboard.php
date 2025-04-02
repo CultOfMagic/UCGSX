@@ -17,7 +17,7 @@ if (empty($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
     exit();
 }
 
-include 'db_connection.php';
+include '../config/db_connection.php';
 
 // Verify database connection
 if (!$conn || $conn->connect_error) {
