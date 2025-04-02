@@ -242,7 +242,7 @@ $notifications = getUserNotifications($conn, $userId);
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT request_id, item_name, request_date, status FROM user_requests WHERE user_id = ? AND status = 'Pending'");
+                    $stmt = $conn->prepare("SELECT request_id, item_name, created_at AS request_date, status FROM user_requests WHERE user_id = ? AND status = 'Pending'");
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -271,7 +271,8 @@ $notifications = getUserNotifications($conn, $userId);
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT item_id, item_name, borrow_date, actual_return_date FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+                    $stmt = $conn->prepare("SELECT borrow_id AS item_id, item_id AS item_name, borrow_date, actual_return_date FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+                    // Replace 'item_id AS item_name' with the correct column name for the item name if necessary
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -280,8 +281,7 @@ $notifications = getUserNotifications($conn, $userId);
                                 <td>" . htmlspecialchars($row['item_id']) . "</td>
                                 <td>" . htmlspecialchars($row['item_name']) . "</td>
                                 <td>" . htmlspecialchars($row['borrow_date']) . "</td>
-                                <td>" . htmlspecialchars($row['return_date']) . "</td>
-                              </tr>";
+                                <td>" . htmlspecialchars($row['actual_return_date']) . "</td>";
                     }
                     $stmt->close();
                     ?>
@@ -307,8 +307,7 @@ $notifications = getUserNotifications($conn, $userId);
                         echo "<tr>
                                 <td>" . htmlspecialchars($row['transaction_id']) . "</td>
                                 <td>" . htmlspecialchars($row['details']) . "</td>
-                                <td>" . htmlspecialchars($row['created_at']) . "</td>
-                              </tr>";
+                                <td>" . htmlspecialchars($row['created_at']) . "</td>";
                     }
                     $stmt->close();
                     ?>
@@ -316,7 +315,7 @@ $notifications = getUserNotifications($conn, $userId);
             </table>
         </div>
     </div>
-    <script src="../js/usersd.js"></script>
+    <script src="../js/usersdash.js"></script>
     <script>
         // Sidebar dropdown functionality
         document.querySelectorAll('.dropdown-btn').forEach(button => {

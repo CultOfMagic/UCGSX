@@ -161,7 +161,7 @@ $allRequests = [
 // Pagination variables
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = 10;
-$totalNotifications = count($requests);
+$totalNotifications = count($allRequests);
 
 ?>
 
@@ -172,7 +172,7 @@ $totalNotifications = count($requests);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Notifications</title>
-    <link rel="stylesheet" href="../css/admind.css">
+    <link rel="stylesheet" href="../css/notification.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Add loading animation CSS -->
     <style>

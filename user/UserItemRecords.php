@@ -17,7 +17,8 @@ function getCurrentUser($conn) {
     $userId = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
     if (!$stmt) {
-        die("Database error: " . $conn->error);
+        error_log("Database error: " . $conn->error);
+        die("An error occurred. Please try again later.");
     }
     $stmt->bind_param("i", $userId);
     $stmt->execute();
@@ -29,19 +30,20 @@ function getCurrentUser($conn) {
 }
 
 $currentUser = getCurrentUser($conn);
-$accountName = htmlspecialchars($currentUser['username']);
-$accountEmail = htmlspecialchars($currentUser['email']);
+$accountName = htmlspecialchars($currentUser['username'] ?? 'User');
+$accountEmail = htmlspecialchars($currentUser['email'] ?? '');
 
 // Pagination logic
 $itemsPerPage = 10; // Number of items per page
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = isset($_GET['page']) ? filter_var($_GET['page'], FILTER_VALIDATE_INT) : 1;
 $page = max($page, 1); // Ensure the page is at least 1
 
 // Count total items
 $totalItemsQuery = "SELECT COUNT(*) as total FROM items WHERE deleted_at IS NULL";
 $totalItemsResult = $conn->query($totalItemsQuery);
 if (!$totalItemsResult) {
-    die("Database error: " . $conn->error);
+    error_log("Database error: " . $conn->error);
+    die("An error occurred. Please try again later.");
 }
 $totalItemsRow = $totalItemsResult->fetch_assoc();
 $totalItems = $totalItemsRow['total'] ?? 0;
@@ -52,22 +54,20 @@ $totalPages = ceil($totalItems / $itemsPerPage);
 // Calculate offset for pagination
 $offset = ($page - 1) * $itemsPerPage;
 
-// Fetch items for the current page (exclude 'item_no')
-$query = "SELECT item_name, description, quantity, unit, status, last_updated, model_no, item_category, item_location FROM items WHERE deleted_at IS NULL LIMIT ?, ?";
-$stmt = $conn->prepare($query);
+// Fetch items for the current page
+$itemsQuery = "SELECT item_name, description, quantity, unit, status, last_updated, model_no, item_category, item_location 
+               FROM items 
+               WHERE deleted_at IS NULL 
+               LIMIT ?, ?";
+$stmt = $conn->prepare($itemsQuery);
 if (!$stmt) {
-    die("Database error: " . $conn->error);
+    error_log("Database error: " . $conn->error);
+    die("An error occurred. Please try again later.");
 }
 $stmt->bind_param("ii", $offset, $itemsPerPage);
 $stmt->execute();
 $result = $stmt->get_result();
-if (!$result) {
-    die("Database error: " . $stmt->error);
-}
-$items = [];
-while ($row = $result->fetch_assoc()) {
-    $items[] = array_map('htmlspecialchars', $row);
-}
+$items = $result->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 // Pass items data to JavaScript
@@ -128,12 +128,11 @@ echo "<script>const itemsData = " . json_encode($items) . ";</script>";
     <h2>Item Records</h2>
     <!-- Search and Filter Form -->
 <div class="search-form">
-    <input type="text" id="search-input" placeholder="Search...">
-    <p style = "font-family: 'Akrobat', sans-serif;">Date Range:</p>
-    <input type="date" id="start-date">
-    <p style = "font-family: 'Akrobat', sans-serif;">To</p>
-    <input type="date" id="end-date">
-    <button class="reset-btn" onclick="resetSearch()">Reset</button>
+    <input type="text" id="search-input" placeholder="Search..." oninput="searchTable()">
+    <p style="font-family: 'Akrobat', sans-serif;">Date Range:</p>
+    <input type="date" id="start-date" onchange="searchTable()">
+    <p style="font-family: 'Akrobat', sans-serif;">To</p>
+    <input type="date" id="end-date" onchange="searchTable()">
 </div>
 
 
@@ -157,21 +156,20 @@ echo "<script>const itemsData = " . json_encode($items) . ";</script>";
                 <?php if (!empty($items)): ?>
                     <?php foreach ($items as $row): ?>
                         <tr>
-                            
-                            <td><?= $row['item_name'] ?></td>
-                            <td><?= $row['description'] ?></td>
-                            <td><?= $row['quantity'] ?></td>
-                            <td><?= $row['unit'] ?></td>
-                            <td><?= $row['status'] ?></td>
-                            <td><?= $row['last_updated'] ?></td>
-                            <td><?= $row['model_no'] ?></td>
-                            <td><?= $row['item_category'] ?></td>
-                            <td><?= $row['item_location'] ?></td>
+                            <td><?= $row['item_name'] ?? 'N/A' ?></td>
+                            <td><?= $row['description'] ?? 'N/A' ?></td>
+                            <td><?= $row['quantity'] ?? 'N/A' ?></td>
+                            <td><?= $row['unit'] ?? 'N/A' ?></td>
+                            <td><?= $row['status'] ?? 'N/A' ?></td>
+                            <td><?= $row['last_updated'] ?? 'N/A' ?></td>
+                            <td><?= $row['model_no'] ?? 'N/A' ?></td>
+                            <td><?= $row['item_category'] ?? 'N/A' ?></td>
+                            <td><?= $row['item_location'] ?? 'N/A' ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="9">No records found.</td>
+                        <td colspan="9" style="text-align: center;">No records found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>

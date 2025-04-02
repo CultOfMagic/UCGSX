@@ -149,3 +149,27 @@ document.addEventListener("DOMContentLoaded", function () {
     // Run the check function on page load
     checkData();
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const selectAllCheckbox = document.getElementById("selectAll");
+    const itemCheckboxes = document.querySelectorAll(".select-checkbox");
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener("change", function () {
+            const isChecked = this.checked;
+            itemCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+    }
+
+    itemCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener("change", function () {
+            if (!this.checked) {
+                selectAllCheckbox.checked = false;
+            } else if (Array.from(itemCheckboxes).every(cb => cb.checked)) {
+                selectAllCheckbox.checked = true;
+            }
+        });
+    });
+});

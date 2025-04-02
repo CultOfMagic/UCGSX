@@ -24,18 +24,27 @@ $accountRole = $currentAdmin['role'] ?? '';
 
 // Pagination logic
 $limit = 10; // Number of rows per page
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = isset($_GET['page']) && $_GET['page'] > 0 ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
 
 // Fetch total number of rows
 $totalQuery = "SELECT COUNT(*) AS total FROM items";
 $totalResult = $conn->query($totalQuery);
 $totalRows = $totalResult->fetch_assoc()['total'];
-$totalPages = ceil($totalRows / $limit);
+$totalPages = $totalRows > 0 ? ceil($totalRows / $limit) : 1;
+
+// Ensure the current page is within valid range
+if ($page > $totalPages) {
+    $page = $totalPages;
+    $offset = ($page - 1) * $limit;
+}
 
 // Fetch limited rows for the current page
-$query = "SELECT * FROM items LIMIT $limit OFFSET $offset";
-$result = $conn->query($query);
+$query = $conn->prepare("SELECT * FROM items LIMIT ? OFFSET ?");
+$query->bind_param("ii", $limit, $offset);
+$query->execute();
+$result = $query->get_result();
+$query->close();
 ?>
 
 <!DOCTYPE html>
@@ -60,8 +69,8 @@ $result = $conn->query($query);
     <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
     <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
     <div class="user-dropdown" id="userDropdown">
-        <a href="../adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
-        <a href="../adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
+        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
         <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
     </div>
 </div>

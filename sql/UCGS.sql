@@ -7,9 +7,16 @@ CREATE TABLE IF NOT EXISTS users (
     role ENUM('User', 'Administrator') NOT NULL,
     ministry ENUM('UCM', 'CWA', 'CHOIR', 'PWT', 'CYF') NOT NULL,
     status ENUM('Active', 'Deactivated') NOT NULL DEFAULT 'Active',
+    deactivation_end DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- Add indexes for performance optimization
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_status ON users(status);
 
 -- Create Items Table
 CREATE TABLE IF NOT EXISTS items (
@@ -62,7 +69,7 @@ CREATE TABLE IF NOT EXISTS reports (
 
 -- Create Borrow Requests Table
 CREATE TABLE IF NOT EXISTS borrow_requests (
-    id INT AUTO_INCREMENT PRIMARY KEY, -- Changed request_id to id
+    request_id INT AUTO_INCREMENT PRIMARY KEY, -- Ensure the column name is 'request_id'
     user_id INT NOT NULL,
     item_id INT NOT NULL,
     quantity INT NOT NULL,
@@ -88,6 +95,10 @@ CREATE TABLE IF NOT EXISTS return_requests (
     admin_reason TEXT DEFAULT NULL,
     UNIQUE (borrow_id)
 );
+
+-- Modify Return Requests Table to add the missing 'quantity' column
+ALTER TABLE return_requests
+ADD COLUMN quantity INT NOT NULL AFTER borrow_id;
 
 -- Create Borrowed Items Table
 CREATE TABLE IF NOT EXISTS borrowed_items (
@@ -188,14 +199,14 @@ ADD CONSTRAINT fk_borrow_requests_user_id FOREIGN KEY (user_id) REFERENCES users
 ADD CONSTRAINT fk_borrow_requests_item_id FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE return_requests
-ADD CONSTRAINT fk_return_requests_borrow_id FOREIGN KEY (borrow_id) REFERENCES borrow_requests(borrow_id) ON DELETE CASCADE ON UPDATE CASCADE;
+ADD CONSTRAINT fk_return_requests_borrow_id FOREIGN KEY (borrow_id) REFERENCES borrow_requests(request_id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE borrowed_items
-ADD CONSTRAINT fk_borrowed_items_request_id FOREIGN KEY (request_id) REFERENCES borrow_requests(borrow_id) ON DELETE CASCADE ON UPDATE CASCADE,
+ADD CONSTRAINT fk_borrowed_items_request_id FOREIGN KEY (request_id) REFERENCES borrow_requests(request_id) ON DELETE CASCADE ON UPDATE CASCADE,
 ADD CONSTRAINT fk_borrowed_items_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE returned_items
-ADD CONSTRAINT fk_returned_items_borrow_id FOREIGN KEY (borrow_id) REFERENCES borrow_requests(borrow_id) ON DELETE CASCADE ON UPDATE CASCADE,
+ADD CONSTRAINT fk_returned_items_borrow_id FOREIGN KEY (borrow_id) REFERENCES borrow_requests(request_id) ON DELETE CASCADE ON UPDATE CASCADE,
 ADD CONSTRAINT fk_returned_items_processed_by FOREIGN KEY (processed_by) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE,
 ADD CONSTRAINT fk_returned_items_user_id FOREIGN KEY (processed_by) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -228,3 +239,12 @@ ADD CONSTRAINT fk_reports_item_no FOREIGN KEY (item_no) REFERENCES items(item_no
 CREATE INDEX idx_items_item_name ON items(item_name);
 CREATE INDEX idx_new_item_requests_status ON new_item_requests(status);
 CREATE INDEX idx_borrow_requests_status ON borrow_requests(status);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_type ON notifications(type);
+CREATE INDEX idx_new_item_requests_ministry ON new_item_requests(ministry);
+CREATE INDEX idx_new_item_requests_request_date ON new_item_requests(request_date);
+CREATE INDEX idx_items_status ON items(status);
+CREATE INDEX idx_items_item_category ON items(item_category);
+CREATE INDEX idx_items_item_location ON items(item_location);
+CREATE INDEX idx_return_requests_status ON return_requests(status);
+CREATE INDEX idx_user_requests_status ON user_requests(status);

@@ -163,6 +163,84 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 });
 
+// Create New Item Modal
+document.addEventListener("DOMContentLoaded", function () {
+    const createModal = document.getElementById("create-Item-modal");
+    const updateModal = document.getElementById("updateModal");
+    const cancelCreate = document.getElementById("cancel-btn");
+    const cancelUpdate = document.getElementById("cancelUpdate");
+
+    // Open Create Modal
+    window.openCreateModal = function () {
+        const createModal = document.getElementById("create-Item-modal"); // Corrected modal ID
+        createModal.style.display = "block";
+    };
+
+    // Close Create Modal
+    cancelCreate.addEventListener("click", function () {
+        createModal.style.display = "none";
+    });
+
+    // Open Update Modal
+    window.openUpdateModal = function (button) {
+        updateModal.style.display = "block";
+        // Populate update modal fields with data from the selected row
+        const row = button.closest("tr");
+        document.getElementById("update-item-no").value = row.cells[1].innerText;
+        document.getElementById("update-item-name").value = row.cells[2].innerText;
+        document.getElementById("update-description").value = row.cells[3].innerText;
+        document.getElementById("update-quantity").value = row.cells[4].innerText;
+        document.getElementById("update-unit").value = row.cells[5].innerText;
+        document.getElementById("update-status").value = row.cells[6].innerText;
+        document.getElementById("update-model-no").value = row.cells[8].innerText;
+        document.getElementById("update-item-category").value = row.cells[9].innerText;
+        document.getElementById("update-item-location").value = row.cells[10].innerText;
+    };
+
+    // Close Update Modal
+    cancelUpdate.addEventListener("click", function () {
+        updateModal.style.display = "none";
+    });
+
+    // Close modals when clicking outside
+    window.onclick = function (event) {
+        if (event.target === createModal) {
+            createModal.style.display = "none";
+        }
+        if (event.target === updateModal) {
+            updateModal.style.display = "none";
+        }
+    };
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Select All Functionality
+    const selectAllCheckbox = document.querySelector(".select-all");
+    const itemCheckboxes = document.querySelectorAll(".select-item");
+
+    window.toggleSelectAll = function (checkbox) {
+        itemCheckboxes.forEach(itemCheckbox => {
+            itemCheckbox.checked = checkbox.checked;
+        });
+    };
+
+    // Delete Selected Functionality
+    window.deleteSelected = function () {
+        const selectedCheckboxes = Array.from(itemCheckboxes).filter(checkbox => checkbox.checked);
+        if (selectedCheckboxes.length === 0) {
+            alert("No items selected for deletion.");
+            return;
+        }
+
+        if (confirm("Are you sure you want to delete the selected items?")) {
+            selectedCheckboxes.forEach(checkbox => {
+                const row = checkbox.closest("tr");
+                row.remove();
+            });
+        }
+    };
+});
+
 
 
 

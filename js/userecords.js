@@ -75,11 +75,33 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // Search functionality
-    function searchTable() {
-        const query = document.getElementById("search-input").value.toLowerCase();
+    // Search functionality with automatic filtering
+    const searchInput = document.getElementById("search-input");
+    const startDateInput = document.getElementById("start-date");
+    const endDateInput = document.getElementById("end-date");
+
+    searchInput.addEventListener("input", filterTable);
+    startDateInput.addEventListener("change", filterTable);
+    endDateInput.addEventListener("change", filterTable);
+
+    function filterTable() {
+        const query = searchInput.value.toLowerCase();
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+
         rows = Array.from(tableBody.getElementsByTagName("tr"));
-        filteredRows = rows.filter(row => row.textContent.toLowerCase().includes(query));
+        filteredRows = rows.filter(row => {
+            const rowText = row.textContent.toLowerCase();
+            const lastUpdatedCell = row.querySelector("td:nth-child(8)"); // Assuming "Last Updated" is the 8th column
+            const lastUpdatedDate = lastUpdatedCell ? new Date(lastUpdatedCell.textContent) : null;
+
+            const matchesQuery = rowText.includes(query);
+            const matchesDateRange = (!startDateInput.value || lastUpdatedDate >= startDate) &&
+                                     (!endDateInput.value || lastUpdatedDate <= endDate);
+
+            return matchesQuery && matchesDateRange;
+        });
+
         resetPagination();
     }
 
@@ -101,7 +123,6 @@ document.addEventListener("DOMContentLoaded", function () {
         tableBody.innerHTML = items.length
             ? items.map(item => `
                 <tr>
-                    <td>${item.item_no}</td>
                     <td>${item.item_name}</td>
                     <td>${item.description}</td>
                     <td>${item.quantity}</td>
@@ -123,10 +144,79 @@ document.addEventListener("DOMContentLoaded", function () {
     // Attach functions to window for button clicks
     window.nextPage = nextPage;
     window.prevPage = prevPage;
-    window.searchTable = searchTable;
+    window.searchTable = filterTable;
     window.resetSearch = resetSearch;
-});
 
+    // Create button functionality
+    const createButton = document.getElementById("create-item-btn");
+    createButton.addEventListener("click", function () {
+        const itemNameInput = document.getElementById("item-name");
+        const descriptionInput = document.getElementById("description");
+        const quantityInput = document.getElementById("quantity");
+        const unitInput = document.getElementById("unit");
+        const statusInput = document.getElementById("status");
+        const modelNoInput = document.getElementById("model-no");
+        const itemCategoryInput = document.getElementById("item-category");
+        const itemLocationInput = document.getElementById("item-location");
+
+        // Validate inputs
+        if (!itemNameInput.value || !descriptionInput.value || !quantityInput.value || !unitInput.value || !statusInput.value || !modelNoInput.value || !itemCategoryInput.value || !itemLocationInput.value) {
+            alert("Please fill in all fields.");
+            return;
+        }
+
+        const newItem = {
+            item_name: itemNameInput.value,
+            description: descriptionInput.value,
+            quantity: quantityInput.value,
+            unit: unitInput.value,
+            status: statusInput.value,
+            last_updated: new Date().toLocaleDateString(),
+            model_no: modelNoInput.value,
+            item_category: itemCategoryInput.value,
+            item_location: itemLocationInput.value,
+        };
+
+        // Add the new item to the table
+        const newRow = createTableRow(newItem);
+        tableBody.appendChild(newRow);
+        rows.push(newRow);
+        filteredRows = [...rows];
+        resetPagination();
+
+        // Clear input fields
+        itemNameInput.value = "";
+        descriptionInput.value = "";
+        quantityInput.value = "";
+        unitInput.value = "";
+        statusInput.value = "";
+        modelNoInput.value = "";
+        itemCategoryInput.value = "";
+        itemLocationInput.value = "";
+
+        // Close modal if applicable
+        const createModal = document.getElementById("create-item-btn");
+        if (createModal) {
+            createModal.style.display = "none";
+        }
+    });
+
+    function createTableRow(item) {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${item.item_name}</td>
+            <td>${item.description}</td>
+            <td>${item.quantity}</td>
+            <td>${item.unit}</td>
+            <td>${item.status}</td>
+            <td>${item.last_updated}</td>
+            <td>${item.model_no}</td>
+            <td>${item.item_category}</td>
+            <td>${item.item_location}</td>
+        `;
+        return row;
+    }
+});
 
 
 

@@ -220,12 +220,18 @@ document.addEventListener("DOMContentLoaded", function () {
 document.addEventListener("DOMContentLoaded", function () {
     const approveButtons = document.querySelectorAll(".approve-btn");
     const rejectButtons = document.querySelectorAll(".reject-btn");
+    const rejectModal = document.getElementById("rejectModal");
+    const rejectionReason = document.getElementById("rejectionReason");
+    const errorMessage = document.getElementById("error-message");
+    const confirmReject = document.getElementById("confirmReject");
+    const cancelReject = document.getElementById("cancelReject");
+    let currentRequestId = null;
 
     approveButtons.forEach(button => {
         button.addEventListener("click", function () {
             const requestId = this.closest("tr").dataset.requestId;
 
-            fetch("handleRequest.php", {
+            fetch("ItemRequest.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: `action=approve&request_id=${requestId}`
@@ -238,35 +244,61 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else {
                     alert(data.message);
                 }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert("An error occurred while processing the request.");
             });
         });
     });
 
     rejectButtons.forEach(button => {
         button.addEventListener("click", function () {
-            const requestId = this.closest("tr").dataset.requestId;
-            const reason = prompt("Enter rejection reason:");
-
-            if (!reason) {
-                alert("Rejection reason is required.");
-                return;
-            }
-
-            fetch("handleRequest.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: `action=reject&request_id=${requestId}&reason=${encodeURIComponent(reason)}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert(data.message);
-                }
-            });
+            currentRequestId = this.closest("tr").dataset.requestId;
+            rejectionReason.value = "";
+            errorMessage.textContent = "";
+            rejectModal.style.display = "block";
         });
+    });
+
+    confirmReject.addEventListener("click", function () {
+        const reason = rejectionReason.value.trim();
+
+        if (!reason) {
+            errorMessage.textContent = "Rejection reason is required.";
+            return;
+        }
+
+        fetch("ItemRequest.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `action=reject&request_id=${currentRequestId}&reason=${encodeURIComponent(reason)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("An error occurred while processing the request.");
+        });
+
+        rejectModal.style.display = "none";
+    });
+
+    cancelReject.addEventListener("click", function () {
+        rejectModal.style.display = "none";
+    });
+
+    window.addEventListener("click", function (event) {
+        if (event.target === rejectModal) {
+            rejectModal.style.display = "none";
+        }
     });
 });
 //Search and Filter Script

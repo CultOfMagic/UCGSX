@@ -42,80 +42,52 @@ if ($tableCheckResult->num_rows === 0) {
     die("Error: The 'requests' table does not exist in the database.");
 }
 
-// Fetch requests for the logged-in user
-$requestsQuery = "
+// Fetch borrow requests for the logged-in user
+$borrowRequestsQuery = "
     SELECT 
-        borrow_requests.user_id, 
         borrow_requests.item_id, 
+        items.item_name, 
         borrow_requests.quantity, 
         borrow_requests.date_needed, 
         borrow_requests.return_date, 
         borrow_requests.purpose, 
         borrow_requests.notes, 
-        borrow_requests.status, 
-        items.item_name 
+        borrow_requests.status 
     FROM borrow_requests 
     JOIN items ON borrow_requests.item_id = items.item_id 
     WHERE borrow_requests.user_id = ?
 ";
-$requestsStmt = $conn->prepare($requestsQuery);
-$requestsStmt->bind_param("i", $currentUserId); // Use the correct user ID
-$requestsStmt->execute();
-$requestsResult = $requestsStmt->get_result();
-$requestsStmt->close();
+$borrowRequestsStmt = $conn->prepare($borrowRequestsQuery);
+$borrowRequestsStmt->bind_param("i", $currentUserId);
+$borrowRequestsStmt->execute();
+$borrowRequestsResult = $borrowRequestsStmt->get_result();
+$borrowRequestsStmt->close();
 
 // Fetch new item requests for the logged-in user
-$newRequestsQuery = "
+$newItemRequestsQuery = "
     SELECT 
+        new_item_requests.item_name, 
         new_item_requests.quantity, 
         new_item_requests.request_date AS date_requested, 
-        new_item_requests.status, 
-        new_item_requests.item_name 
+        new_item_requests.status 
     FROM new_item_requests 
     WHERE new_item_requests.user_id = ?
 ";
-$newRequestsStmt = $conn->prepare($newRequestsQuery);
-$newRequestsStmt->bind_param("i", $currentUserId);
-$newRequestsStmt->execute();
-$newRequestsResult = $newRequestsStmt->get_result();
-$newRequestsStmt->close();
-
-// Correct the SQL query to reference valid columns
-$sql = "
-    SELECT 
-        borrow_requests.id AS borrow_id, -- Adjusted column name to 'id'
-        borrow_requests.item_name,
-        borrow_requests.quantity AS borrow_quantity,
-        borrow_requests.status AS borrow_status,
-        return_requests.id AS return_id,
-        return_requests.return_date,
-        return_requests.condition AS return_condition
-    FROM 
-        borrow_requests
-    LEFT JOIN 
-        return_requests ON borrow_requests.id = return_requests.borrow_request_id -- Adjusted join condition
-    WHERE 
-        borrow_requests.user_id = ?
-";
-
-// Prepare and execute the query
-$stmt = $conn->prepare($sql);
-if (!$stmt) {
-    die("Database error: " . $conn->error);
-}
-$stmt->bind_param("i", $_SESSION['user_id']);
-$stmt->execute();
-$result = $stmt->get_result();
+$newItemRequestsStmt = $conn->prepare($newItemRequestsQuery);
+$newItemRequestsStmt->bind_param("i", $currentUserId);
+$newItemRequestsStmt->execute();
+$newItemRequestsResult = $newItemRequestsStmt->get_result();
+$newItemRequestsStmt->close();
 
 // Fetch returned item requests for the logged-in user
 $returnedRequestsQuery = "
     SELECT 
+        items.item_name, 
         return_requests.quantity, 
         return_requests.date_returned, 
-        return_requests.status, 
-        items.item_name 
+        return_requests.status 
     FROM return_requests 
-    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.id 
+    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.primary_key -- Replace 'primary_key' with the correct column name
     JOIN items ON borrow_requests.item_id = items.item_id 
     WHERE borrow_requests.user_id = ?
 ";
@@ -193,7 +165,7 @@ $returnedRequestsStmt->close();
             </tr>
         </thead>
         <tbody>
-            <?php while ($request = $requestsResult->fetch_assoc()): ?>
+            <?php while ($request = $borrowRequestsResult->fetch_assoc()): ?>
                 <tr>
                     <td>Borrow</td>
                     <td><?php echo htmlspecialchars($request['item_name']); ?></td>
@@ -204,7 +176,7 @@ $returnedRequestsStmt->close();
                 </tr>
             <?php endwhile; ?>
 
-            <?php while ($newRequest = $newRequestsResult->fetch_assoc()): ?>
+            <?php while ($newRequest = $newItemRequestsResult->fetch_assoc()): ?>
                 <tr>
                     <td>New Item</td>
                     <td><?php echo htmlspecialchars($newRequest['item_name']); ?></td>

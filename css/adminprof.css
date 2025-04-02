@@ -45,11 +45,6 @@ body {
     align-items: center;
 }
 
-.main-content:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-}
-
 .profile-title {
     font-size: 2.5rem;
     margin-bottom: 20px;
@@ -132,6 +127,109 @@ body {
     margin-left: 250px;
     margin-top: 120px;
     padding: 20px;
+}
+
+/* PASSWORD EDIT */
+/* Alert Messages */
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+.alert-success {
+    background-color: #dff0d8;
+    color: #3c763d;
+    border: 1px solid #d6e9c6;
+}
+.alert-danger {
+    background-color: #f2dede;
+    color: #a94442;
+    border: 1px solid #ebccd1;
+}
+
+/* Loading Button */
+.btn.loading {
+    pointer-events: none;
+}
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Password Strength Meter */
+#password-strength {
+    width: 0;
+    height: 5px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+#password-strength-text {
+    font-size: 0.8em;
+    color: #666;
+}
+
+/* Updated Password Input with Eye Inside */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-wrapper input {
+    width: 100%;
+    padding: 12px 40px 12px 12px; /* Right padding for eye icon */
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    margin-bottom: 15px;
+    font-family: 'Akrobat', sans-serif;
+    background-color: #f9f9f9;
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #666;
+    font-size: 1rem;
+    z-index: 2; /* Ensure it stays above the input */
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password:hover {
+    color: #333;
+}
+
+.toggle-password:focus {
+    outline: none;
+    color: #1a73e8;
+}
+
+/* Remove default input[type="password"] eye icon in Edge */
+input[type="password"]::-ms-reveal {
+    display: none;
 }
 
 .left-side {

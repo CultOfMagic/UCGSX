@@ -13,4 +13,5 @@ try {
     // Handle connection errors
     die("Database connection failed: " . $e->getMessage());
 }
+
 ?>

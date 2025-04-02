@@ -115,6 +115,8 @@ $accountRole = $loggedInUser['role'];
     <input type="date" id="end-date">
     <button class="search-btn" onclick="searchTable()">Search</button>
     <button class="reset-btn" onclick="resetSearch()">Reset</button>
+    <button class="create-btn" onclick="openCreateModal()">Create New Item</button>
+    <button class="delete-selected-btn" onclick="deleteSelected()">Delete Selected</button>
 </div>
 
 
@@ -123,7 +125,7 @@ $accountRole = $loggedInUser['role'];
         <table class="item-table">
             <thead>
                 <tr>
-                    <th>Select All <input type="checkbox" class="select-all"></th>
+                    <th>Select All <input type="checkbox" class="select-all" onclick="toggleSelectAll(this)"></th>
                     <th>Item No</th>
                     <th>Item Name</th>
                     <th>Description</th>
@@ -134,7 +136,9 @@ $accountRole = $loggedInUser['role'];
                     <th>Model No</th>
                     <th>Item Category</th>
                     <th>Item Location</th>
-                    <th>Actions</th>
+                    <th>
+                        Actions
+                    </th>
                 </tr>
             </thead>
             <tbody id="item-table-body">
@@ -211,6 +215,51 @@ $accountRole = $loggedInUser['role'];
         </form>
     </div>
 </div>
+
+<!-- Create New Item Modal -->
+<div id="create-Item-modal" class="modal"> <!-- Corrected modal ID -->
+    <div class="modal-content">
+        <h2>Create New Item</h2>
+        <form id="account-form">
+            <input type="hidden" id="user-id"> <!-- Hidden input for user_id -->
+            <label for="item-name">Item Name</label>
+            <input type="text" id="item-name" required>
+
+            <label for="description">Description</label>
+            <input type="description" id="description" required>
+
+            <label for="quantity">Quantity</label>
+            <input type="quantity" id="quantity" required>
+
+            <label for="model-no">Model No.</label>
+            <input type="model-no" id="model-no" required>
+
+            <label for="status">Status</label>
+            <input type="status" id="status" required>
+
+            <label for="unit">Unit</label>
+            <select id="unit">
+                <option value="Choose">-- Select Units --</option>
+                <option value="pcs">Pcs</option>
+                <option value="bx">Bx</option>
+                <option value="pr">Pr</option>
+                <option value="bdl">Bdl</option>
+            </select>
+
+            <label for="item-category">Item Category</label>
+            <select id="item-category">
+            <option value="Choose">-- Select Category --</option>
+                <option value="electronics">Electronics</option>
+                <option value="stationary">Stationary</option>
+                <option value="furniture">Furniture</option>
+                <option value="consumables">Consumables</option>
+            </select>
+            <button type="submit">Submit</button>
+            <button type="button" id="cancel-btn">Cancel</button>
+        </form>
+    </div>
+</div>
+<!-- Ensure modal is placed near the table for proper positioning -->
 
     <script src="../js/records.js"></script>
 

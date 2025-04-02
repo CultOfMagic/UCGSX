@@ -32,13 +32,59 @@ $currentUser = getCurrentUser($conn);
 $accountName = htmlspecialchars($currentUser['username']);
 $accountEmail = htmlspecialchars($currentUser['email']);
 
-// Fetch approved borrow requests
+// Fetch approved borrow requests with item details
 $approved_items = [];
-$sql = "SELECT id, item_name FROM borrow_requests WHERE status = 'approved'";
+$sql = "SELECT br.borrow_id AS id, br.item_id, i.item_name 
+        FROM borrow_requests br 
+        JOIN items i ON br.item_id = i.item_id 
+        WHERE br.status = 'approved'";
 $result = $conn->query($sql);
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $approved_items[] = $row;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $itemId = $_POST['item_id'];
+    $itemCategory = $_POST['item_category'];
+    $quantity = $_POST['quantity'];
+    $returnDate = $_POST['return_date'];
+    $condition = $_POST['condition'];
+    $notes = $_POST['notes'];
+    $userId = $_SESSION['user_id'];
+
+    // Validate inputs
+    if (empty($itemId) || empty($itemCategory) || empty($quantity) || empty($returnDate) || empty($condition)) {
+        $error_message = "All fields except 'Additional Notes' are required.";
+    } else {
+        // Check if the item exists in approved borrow requests
+        $stmt = $conn->prepare("SELECT quantity FROM borrow_requests WHERE borrow_id = ? AND user_id = ? AND status = 'approved'");
+        if (!$stmt) {
+            die("Database error: " . $conn->error);
+        }
+        $stmt->bind_param("ii", $itemId, $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $borrowedItem = $result->fetch_assoc();
+        $stmt->close();
+
+        if (!$borrowedItem || $borrowedItem['quantity'] < $quantity) {
+            $error_message = "Invalid return quantity or item not found in approved borrow requests.";
+        } else {
+            // Insert return request into the database
+            $stmt = $conn->prepare("INSERT INTO return_requests (user_id, item_id, item_category, quantity, return_date, item_condition, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+            if (!$stmt) {
+                die("Database error: " . $conn->error);
+            }
+            $stmt->bind_param("iisisss", $userId, $itemId, $itemCategory, $quantity, $returnDate, $condition, $notes);
+            if ($stmt->execute()) {
+                $success_message = "Return request submitted successfully.";
+            } else {
+                $error_message = "Failed to submit return request. Please try again.";
+            }
+            $stmt->close();
+        }
     }
 }
 ?>

@@ -51,16 +51,28 @@ if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
 
 $accountName = $loggedInUser['username'];
 $accountRole = $loggedInUser['role'];
-
-// Fetch borrow requests from the database
-$query = "SELECT br.id AS request_id, u.username, br.item_name, br.item_type, br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, br.status, br.request_date 
+$query = "SELECT br.borrow_id AS request_id, u.username, br.item_name, br.item_type, 
+                 br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
+                 br.status, br.request_date 
           FROM borrow_requests br 
           JOIN users u ON br.user_id = u.user_id";
 $result = $conn->query($query);
+
 if (!$result) {
-    die("Error fetching borrow requests: " . $conn->error);
+    die("Query failed: " . $conn->error);  // Debugging error message
+}
+
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        echo "<pre>";
+        print_r($row);  // Debugging: Print raw data
+        echo "</pre>";
+    }
+} else {
+    echo "No data found.";
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">

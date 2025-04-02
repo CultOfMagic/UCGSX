@@ -29,6 +29,25 @@ try {
 } catch (mysqli_sql_exception $e) {
     die("Error: Unable to fetch user count. Please ensure the 'users' table exists in the database.");
 }
+
+try {
+    // Fetch the total number of items
+    $itemCountQuery = "SELECT COUNT(*) FROM items";
+    $itemCountResult = $conn->query($itemCountQuery);
+    $itemCount = $itemCountResult->fetch_row()[0];
+} catch (mysqli_sql_exception $e) {
+    die("Error: Unable to fetch item count. Please ensure the 'items' table exists in the database.");
+}
+
+
+
+// Prepare data for the main chart
+$chartData = [
+    'users' => $userCount,
+    'items' => $itemCount,
+    'approvedRequests' => $approvedRequestsCount,
+    'pendingRequests' => $pendingRequestsCount
+];
 ?>
 
 <!DOCTYPE html>
@@ -104,19 +123,19 @@ try {
         <div class="card gradient-orange">
             <i class="fa-solid fa-check-circle"></i>
             <h2>Approved Requests</h2>
-            <p>300</p>
+            <p><?php echo htmlspecialchars($approvedRequestsCount); ?></p>
             <canvas id="chart2" class="chart-container"></canvas>
         </div>
         <div class="card gradient-green">
             <i class="fa-solid fa-clock"></i>
             <h2>Pending Requests</h2>
-            <p>200</p>
+            <p><?php echo htmlspecialchars($pendingRequestsCount); ?></p>
             <canvas id="chart3" class="chart-container"></canvas>
         </div>
         <div class="card gradient-purple">
             <i class="fa-solid fa-list"></i>
             <h2>Total Items</h2>
-            <p>500</p>
+            <p><?php echo htmlspecialchars($itemCount); ?></p>
             <canvas id="chart4" class="chart-container"></canvas>
         </div>
     </div>
@@ -210,5 +229,48 @@ try {
     </div>
 
     <script src="../js/admindash.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            const chartData = <?php echo json_encode($chartData); ?>;
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Users', 'Items', 'Approved Requests', 'Pending Requests'],
+                    datasets: [{
+                        label: 'Counts',
+                        data: [chartData.users, chartData.items, chartData.approvedRequests, chartData.pendingRequests],
+                        backgroundColor: [
+                            'rgba(255, 206, 86, 0.6)', // Yellow
+                            'rgba(153, 102, 255, 0.6)', // Purple
+                            'rgba(255, 159, 64, 0.6)', // Orange
+                            'rgba(75, 192, 192, 0.6)'  // Green
+                        ],
+                        borderColor: [
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(75, 192, 192, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>

@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function showPage(page) {
         if (filteredRows.length === 0) {
-            tableBody.innerHTML = "<tr><td colspan='6'>No results found</td></tr>";
+            tableBody.innerHTML = "<tr><td colspan='11'>No results found</td></tr>";
             document.getElementById("page-number").innerText = "No results";
             document.getElementById("prev-btn").disabled = true;
             document.getElementById("next-btn").disabled = true;

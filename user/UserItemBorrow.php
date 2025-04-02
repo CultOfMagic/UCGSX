@@ -108,11 +108,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->close();
 } 
 
-// Fetch items based on category for dynamic population
+// Fetch items based on category for dynamic population with pagination
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
     $category = $_GET['item_category'];
-    $stmt = $conn->prepare("SELECT item_id, item_name FROM items WHERE item_category = ? AND quantity > 0");
-    $stmt->bind_param("s", $category);
+    $page = intval($_GET['page'] ?? 1);
+    $itemsPerPage = 10; // Number of items per page
+    $offset = ($page - 1) * $itemsPerPage;
+
+    $stmt = $conn->prepare("SELECT item_id, item_name FROM items WHERE item_category = ? AND quantity > 0 LIMIT ? OFFSET ?");
+    if (!$stmt) {
+        die('Database error: ' . $conn->error);
+    }
+    $stmt->bind_param("sii", $category, $itemsPerPage, $offset);
     $stmt->execute();
     $result = $stmt->get_result();
     $items = [];
@@ -120,8 +127,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
         $items[] = $row;
     }
     $stmt->close();
+
+    // Get total item count for pagination
+    $countStmt = $conn->prepare("SELECT COUNT(*) as total FROM items WHERE item_category = ? AND quantity > 0");
+    if (!$countStmt) {
+        die('Database error: ' . $conn->error);
+    }
+    $countStmt->bind_param("s", $category);
+    $countStmt->execute();
+    $countResult = $countStmt->get_result();
+    $totalItems = $countResult->fetch_assoc()['total'];
+    $countStmt->close();
+
+    $response = [
+        'items' => $items,
+        'totalItems' => $totalItems,
+        'itemsPerPage' => $itemsPerPage,
+        'currentPage' => $page,
+        'totalPages' => ceil($totalItems / $itemsPerPage),
+    ];
+
     header('Content-Type: application/json');
-    echo json_encode($items);
+    echo json_encode($response);
     exit();
 }
 ?>

@@ -22,30 +22,44 @@ $accountEmail = $currentAdmin['email'] ?? '';
 $accountRole = $_SESSION['role'];
 
 // Check if the 'reports' table exists
-$tableCheckQuery = "SHOW TABLES LIKE 'reports'";
+$tableCheckQuery = "SHOW TABLES LIKE 'items'";
 $tableCheckResult = $conn->query($tableCheckQuery);
 
 if (!$tableCheckResult || $tableCheckResult->num_rows === 0) {
-    echo "<p style='color: red; text-align: center;'>Error: The 'reports' table does not exist in the database.</p>";
+    echo "<p style='color: red; text-align: center;'>Error: The 'items' table does not exist in the database.</p>";
     exit();
 }
 
 // Fetch reports data
-$query = "SELECT * FROM reports";
+$query = "SELECT * FROM items";
 $result = $conn->query($query);
 
 if (!$result) {
-    echo "<p style='color: red; text-align: center;'>Error fetching reports: " . htmlspecialchars($conn->error) . "</p>";
+    echo "<p style='color: red; text-align: center;'>Error fetching items: " . htmlspecialchars($conn->error) . "</p>";
     exit();
 }
 
 // Handle report download requests
 if (isset($_GET['download'])) {
     $downloadType = $_GET['download'];
+    $selectedItems = isset($_POST['selectedItems']) ? json_decode($_POST['selectedItems'], true) : [];
+
     if (in_array($downloadType, ['pdf', 'xlsx'])) {
         $data = [];
-        while ($row = $result->fetch_assoc()) {
-            $data[] = $row;
+        if (!empty($selectedItems)) {
+            $placeholders = implode(',', array_fill(0, count($selectedItems), '?'));
+            $stmt = $conn->prepare("SELECT * FROM items WHERE item_no IN ($placeholders)");
+            $stmt->bind_param(str_repeat('i', count($selectedItems)), ...$selectedItems);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $data[] = $row;
+            }
+            $stmt->close();
+        } else {
+            while ($row = $result->fetch_assoc()) {
+                $data[] = $row;
+            }
         }
 
         if (empty($data)) {
@@ -54,11 +68,12 @@ if (isset($_GET['download'])) {
         }
 
         if ($downloadType === 'pdf') {
-            if (!file_exists('../libs/tcpdf/tcpdf.php')) {
-                echo "<p style='color: red; text-align: center;'>Error: TCPDF library is missing. Please ensure the file '../libs/tcpdf/tcpdf.php' exists.</p>";
+            $tcpdfPath = '../libs/tcpdf/tcpdf.php';
+            if (!file_exists($tcpdfPath)) {
+                echo "<p style='color: red; text-align: center;'>Error: TCPDF library is missing. Please download it from <a href='https://tcpdf.org/'>https://tcpdf.org/</a> and place it in the '../libs/tcpdf/' directory.</p>";
                 exit();
             }
-            require_once '../libs/tcpdf/tcpdf.php';
+            require_once $tcpdfPath;
             $pdf = new TCPDF();
             $pdf->AddPage();
             $html = '<h1>Reports</h1><table border="1" cellpadding="5">';
@@ -197,10 +212,10 @@ if (isset($_GET['download'])) {
         </tr>
     </thead>
     <tbody>
-        <?php if ($result && $result->num_rows > 0): ?>
+        <?php if ($result->num_rows > 0): ?>
             <?php while ($row = $result->fetch_assoc()): ?>
                 <tr>
-                    <td><input type="checkbox"></td>
+                    <td><input type="checkbox" class="select-checkbox" value="<?php echo htmlspecialchars($row['item_no']); ?>"></td>
                     <td><?php echo htmlspecialchars($row['item_no']); ?></td>
                     <td><?php echo htmlspecialchars($row['last_updated']); ?></td>
                     <td><?php echo htmlspecialchars($row['model_no']); ?></td>
@@ -232,6 +247,36 @@ if (isset($_GET['download'])) {
             <button onclick="nextPage()" id="next-btn" style="font-family:'Akrobat', sans-serif;">Next</button>
         </div>
     </div>
+
+    <!-- Add a form to handle selected items -->
+    <form id="downloadForm" method="POST" action="">
+        <input type="hidden" name="selectedItems" id="selectedItems">
+    </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const downloadLinks = document.querySelectorAll(".download-pdf, .download-xlsx");
+            const selectedItemsInput = document.getElementById("selectedItems");
+
+            downloadLinks.forEach(link => {
+                link.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const selectedCheckboxes = document.querySelectorAll(".select-checkbox:checked");
+                    const selectedValues = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+                    if (selectedValues.length === 0) {
+                        alert("Please select at least one item to download.");
+                        return;
+                    }
+
+                    selectedItemsInput.value = JSON.stringify(selectedValues);
+                    const form = document.getElementById("downloadForm");
+                    form.action = this.href;
+                    form.submit();
+                });
+            });
+        });
+    </script>
 
     <script src="../js/report.js"></script>
 </body>

@@ -44,97 +44,84 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-document.addEventListener("DOMContentLoaded", function () { 
+document.addEventListener("DOMContentLoaded", function () {
     const rowsPerPage = 10;
     let currentPage = 1;
-    const table = document.querySelector("table tbody");
-    let rows = Array.from(table.querySelectorAll("tr"));
-    let filteredRows = [...rows]; // Stores filtered results
+    const tableBody = document.getElementById("item-table-body");
+    const rows = Array.from(tableBody.getElementsByTagName("tr"));
+    let filteredRows = [...rows]; // Stores search results
+    let totalPages = Math.ceil(filteredRows.length / rowsPerPage);
 
     function showPage(page) {
-        const totalPages = Math.ceil(filteredRows.length / rowsPerPage) || 1;
-        const start = (page - 1) * rowsPerPage;
-        const end = start + rowsPerPage;
+        if (filteredRows.length === 0) {
+            tableBody.innerHTML = "<tr><td colspan='100%'>No results found</td></tr>";
+            document.getElementById("page-number").innerText = "No results";
+            document.getElementById("prev-btn").disabled = true;
+            document.getElementById("next-btn").disabled = true;
+            return;
+        }
 
-        rows.forEach(row => row.style.display = "none"); // Hide all rows
-        filteredRows.slice(start, end).forEach(row => row.style.display = "table-row"); // Show only needed rows
+        // Hide all rows
+        rows.forEach(row => (row.style.display = "none"));
 
+        // Calculate the start and end index
+        let start = (page - 1) * rowsPerPage;
+        let end = start + rowsPerPage;
+
+        // Show only the rows for this page
+        filteredRows.slice(start, end).forEach(row => (row.style.display = "table-row"));
+
+        // Update page number display
         document.getElementById("page-number").innerText = `Page ${page} of ${totalPages}`;
+
+        // Enable/disable buttons based on page number
         document.getElementById("prev-btn").disabled = page === 1;
-        document.getElementById("next-btn").disabled = page >= totalPages;
+        document.getElementById("next-btn").disabled = page === totalPages;
     }
 
-    // Pagination Buttons
-    document.getElementById("prev-btn").addEventListener("click", function () {
+    function nextPage() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            showPage(currentPage);
+        }
+    }
+
+    function prevPage() {
         if (currentPage > 1) {
             currentPage--;
             showPage(currentPage);
         }
-    });
+    }
 
-    document.getElementById("next-btn").addEventListener("click", function () {
-        if (currentPage < Math.ceil(filteredRows.length / rowsPerPage)) {
-            currentPage++;
-            showPage(currentPage);
-        }
-    });
+    function searchTable() {
+        const query = document.getElementById("search-input").value.toLowerCase();
+        
+        // Filter rows based on search query
+        filteredRows = rows.filter(row => 
+            row.textContent.toLowerCase().includes(query)
+        );
 
-    // Search Functionality
-    window.searchTable = function () {
-        const searchText = document.getElementById("searchBar").value.toLowerCase();
-        filteredRows = rows.filter(row => row.textContent.toLowerCase().includes(searchText));
+        // Reset pagination for new search results
+        currentPage = 1;
+        totalPages = Math.ceil(filteredRows.length / rowsPerPage);
 
-        if (filteredRows.length === 0) {
-            table.innerHTML = "<tr><td colspan='9' style='text-align:center;'>No results found</td></tr>";
-        } else {
-            currentPage = 1; // Reset to first page on new search
-            showPage(currentPage);
-        }
-    };
+        showPage(currentPage);
+    }
 
-    // Reset Search
-    window.resetSearch = function () {
-        document.getElementById("searchBar").value = "";
-        filteredRows = [...rows]; // Restore original data
+    function resetSearch() {
+        document.getElementById("search-input").value = "";
+        filteredRows = [...rows]; // Restore all rows
+        totalPages = Math.ceil(filteredRows.length / rowsPerPage);
         currentPage = 1;
         showPage(currentPage);
-    };
+    }
 
-    // Initialize the first page
+    // Initial table setup
     showPage(currentPage);
-});
 
-//item records delete
-document.addEventListener("DOMContentLoaded", function () {
-    const deleteModal = document.getElementById("deleteModal");
-    const confirmDelete = document.getElementById("confirmDelete");
-    const cancelDelete = document.getElementById("cancelDelete");
-    let currentRow = null;
-
-    // Open modal function
-    window.openDeleteModal = function (button) {
-        console.log("Delete button clicked!"); // Debugging
-        deleteModal.style.display = "block"; 
-        currentRow = button.closest("tr"); 
-    };
-
-    // Close modal when cancel is clicked
-    cancelDelete.addEventListener("click", function () {
-        deleteModal.style.display = "none";
-    });
-
-    // Delete row when confirmed
-    confirmDelete.addEventListener("click", function () {
-        if (currentRow) {
-            currentRow.remove();
-        }
-        deleteModal.style.display = "none";
-    });
-
-    // Close modal when clicking outside
-    window.onclick = function (event) {
-        if (event.target === deleteModal) {
-            deleteModal.style.display = "none";
-        }
-    };
+    // Attach functions to window for button clicks
+    window.nextPage = nextPage;
+    window.prevPage = prevPage;
+    window.searchTable = searchTable;
+    window.resetSearch = resetSearch;
 });

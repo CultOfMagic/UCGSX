@@ -567,6 +567,7 @@ body {
     cursor: pointer;
     border-radius: 6px;
     transition: background 0.3s ease-in-out;
+    font-family: 'akrobat', sans-serif;
 }
 
 .modal form button:hover {

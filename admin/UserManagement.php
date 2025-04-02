@@ -20,6 +20,7 @@ $stmt->close();
 // Pass the current admin details to the frontend
 $accountName = $currentAdmin['username'] ?? 'User';
 $accountEmail = $currentAdmin['email'] ?? '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'];
     $user_id = $_POST['user_id'] ?? null;
@@ -28,20 +29,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? null;
     $role = $_POST['role'] ?? null;
     $ministry = $_POST['ministry'] ?? null;
-    $status = $_POST['status'] ?? 'Active'; // Default status to 'Active'
+    $status = $_POST['status'] ?? 'Active';
+    $duration = $_POST['duration'] ?? null;
 
     if ($action === 'CREATE') {
         if ($password) {
-            $hashedPassword = password_hash($password, PASSWORD_BCRYPT); // Hash the password
+            $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
         }
 
         // Validate required fields
         if (!$username || !$email || !$password || !$role || !$ministry) {
+            header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'All fields are required.']);
             exit;
         }
 
-        // Check if the role is 'Administrator' and limit to 5 administrators
+        // Check administrator limit
         if ($role === 'Administrator') {
             $stmt = $conn->prepare("SELECT COUNT(*) AS admin_count FROM users WHERE role = 'Administrator'");
             $stmt->execute();
@@ -50,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
 
             if ($adminCount >= 5) {
+                header('Content-Type: application/json');
                 echo json_encode(['success' => false, 'error' => 'Administrator creation limit exceeded.']);
                 exit;
             }
@@ -58,8 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("INSERT INTO users (username, email, password, role, ministry, status) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("ssssss", $username, $email, $hashedPassword, $role, $ministry, $status);
         if ($stmt->execute()) {
+            header('Content-Type: application/json');
             echo json_encode(['success' => true, 'user_id' => $conn->insert_id]);
         } else {
+            header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Failed to create account.']);
         }
         $stmt->close();
@@ -72,37 +78,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $stmt->close();
 
+        header('Content-Type: application/json');
         echo json_encode(['success' => true]);
         exit;
     }
 
     if ($action === 'DELETE' && $user_id) {
+        // Prevent deleting other admins
+        $stmt = $conn->prepare("SELECT role FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+        $stmt->close();
+
+        if ($user['role'] === 'Administrator') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'You cannot delete another administrator.']);
+            exit;
+        }
+
         $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $user_id);
         if ($stmt->execute()) {
+            header('Content-Type: application/json');
             echo json_encode(['success' => true]);
         } else {
+            header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Failed to delete user.']);
+        }
+        $stmt->close();
+        exit;
+    }
+
+    if ($action === 'DEACTIVATE' && $user_id && $duration) {
+        // Prevent deactivating other admins
+        $stmt = $conn->prepare("SELECT role FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+        $stmt->close();
+
+        if ($user['role'] === 'Administrator') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'You cannot deactivate another administrator.']);
+            exit;
+        }
+
+        $end_date = date('Y-m-d H:i:s', strtotime("+$duration days"));
+        $stmt = $conn->prepare("UPDATE users SET status = 'Deactivated', deactivation_end = ? WHERE user_id = ?");
+        $stmt->bind_param("si", $end_date, $user_id);
+        
+        header('Content-Type: application/json');
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Deactivation failed']);
         }
         $stmt->close();
         exit;
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetchUsers'])) {
-    $result = $conn->query("SELECT user_id, username, email, role, ministry, status, created_at AS dateCreated FROM users");
+// New endpoint to check and reactivate users
+if (isset($_GET['checkReactivations'])) {
+    $current_date = date('Y-m-d H:i:s');
+    $stmt = $conn->prepare("UPDATE users SET status = 'Active', deactivation_end = NULL WHERE status = 'Deactivated' AND deactivation_end <= ?");
+    $stmt->bind_param("s", $current_date);
+    $stmt->execute();
+    $affected_rows = $stmt->affected_rows;
+    $stmt->close();
+
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'reactivated_users' => $affected_rows]);
+    exit;
+}
+
+if (isset($_GET['fetchUsers'])) {
+    $result = $conn->query("SELECT 
+        user_id, 
+        username, 
+        email, 
+        role, 
+        ministry, 
+        status, 
+        DATE_FORMAT(created_at, '%Y-%m-%d') as dateCreated 
+        FROM users");
+    
     $users = $result->fetch_all(MYSQLI_ASSOC);
-    foreach ($users as &$user) {
-        $user['status'] = $user['status'] === '1' ? 'Active' : 'Inactive'; // Map status to readable format
-    }
+    header('Content-Type: application/json');
     echo json_encode($users);
-    $conn->close();
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetchAllUsers'])) {
     $result = $conn->query("SELECT * FROM users");
     $allUsers = $result->fetch_all(MYSQLI_ASSOC);
+    header('Content-Type: application/json');
     echo json_encode($allUsers);
     $conn->close();
     exit;
@@ -117,6 +190,7 @@ if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
 $accountName = $loggedInUser['username'];
 $accountRole = $loggedInUser['role'];
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
