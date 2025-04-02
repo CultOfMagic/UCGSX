@@ -51,7 +51,7 @@ if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
 
 $accountName = $loggedInUser['username'];
 $accountRole = $loggedInUser['role'];
-$query = "SELECT br.borrow_id AS request_id, u.username, br.item_name, br.item_type, 
+$query = "SELECT br.borrow_id AS request_id, u.username, br.item_name,
                  br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
                  br.status, br.request_date 
           FROM borrow_requests br 

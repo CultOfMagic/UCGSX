@@ -23,9 +23,9 @@ $accountEmail = $currentAdmin['email'] ?? '';
 $accountRole = $currentAdmin['role'] ?? '';
 
 // Fetch returned items data
-$query = "SELECT r.id AS return_id, r.item_id, r.return_date, i.item_name 
-          FROM returns r 
-          JOIN items i ON r.item_id = i.id"; // Ensure 'returns' table has 'id' column
+$query = "SELECT r.return_id, r.borrow_id, r.return_date, i.item_name 
+FROM return_requests r 
+JOIN items i ON r.borrow_id = i.item_id;";
 $result = $conn->query($query);
 
 if (!$result) {
@@ -36,6 +36,7 @@ if (!$result) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,22 +46,22 @@ if (!$result) {
 </head>
 
 <body>
-<header class="header">
+    <header class="header">
         <div class="header-content">
             <div class="left-side">
                 <img src="../assets/img/Logo.png" alt="Logo" class="logo">
                 <span class="website-name">UCGS Inventory</span>
             </div>
             <div class="right-side">
-            <div class="user">
-    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
-    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
-    <div class="user-dropdown" id="userDropdown">
-        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
-        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
-    </div>
-</div>
+                <div class="user">
+                    <img src="../assets/img/users.png" alt="User" class="icon" id="userIcon">
+                    <span class="admin-text"><?php echo htmlspecialchars($accountName); ?> (<?php echo htmlspecialchars($accountRole); ?>)</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="adminprofile.php"><img src="../assets/img/updateuser.png" alt="Profile Icon" class="dropdown-icon"> Profile</a>
+                        <a href="adminnotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+                        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout Icon" class="dropdown-icon"> Logout</a>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -71,12 +72,12 @@ if (!$result) {
             <li class="dropdown">
                 <a href="#" class="dropdown-btn">
                     <img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">
-                    <span class="text">Items</span> 
+                    <span class="text">Items</span>
                     <i class="fa-solid fa-chevron-down arrow-icon"></i>
                 </a>
                 <ul class="dropdown-content">
                     <li><a href="ItemRecords.php"> Item Records</a></li>
-                    <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
+                    <li><a href="InventorySummary.php"> Inventory Summary</a></li>
                 </ul>
             </li>
             <li class="dropdown">
@@ -99,74 +100,75 @@ if (!$result) {
     <div class="main-content">
         <!-- Main content goes here -->
         <div class="table-container">
-    <h2>Item Returned</h2>
-    <div class="filter-container">
-    <input type="text" id="search-input" placeholder="Search..." oninput="searchTable()">
-    
-    <label for="start-date">Date Range:</label>
-    <input type="date" id="start-date" onchange="filterByDate()">
-    
-    <label for="end-date">To:</label>
-    <input type="date" id="end-date" onchange="filterByDate()">
-</div>
+            <h2>Item Returned</h2>
+            <div class="filter-container">
+                <input type="text" id="search-input" placeholder="Search..." oninput="searchTable()">
 
-<table class="inventory-table">
-        <thead>
-            <tr>
-                <th>Username</th>
-                <th>Item Name</th>
-                <th>Return Date</th>
-                <th>Quantity</th>
-                <th>Condition</th>
-                <th>Notes</th>
-                <th>Status</th>
-                <th>Return Request Date</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="item-table-body">
-            <?php while ($row = $result->fetch_assoc()): ?>
-        <tr>
-            <td><?php echo htmlspecialchars($row['username']); ?></td>
-            <td><?php echo htmlspecialchars($row['item_name']); ?></td>
-            <td><?php echo htmlspecialchars($row['return_date']); ?></td>
-            <td><?php echo htmlspecialchars($row['quantity']); ?></td>
-            <td><?php echo htmlspecialchars($row['item_condition']); ?></td>
-            <td><?php echo htmlspecialchars($row['notes']); ?></td>
-            <td><?php echo htmlspecialchars($row['status']); ?></td>
-            <td><?php echo htmlspecialchars($row['request_date']); ?></td>
-            <td>
-                <button class="approve-btn">Approve</button>
-                <button class="reject-btn">Reject</button>
-            </td>
-        </tr>
-    <?php endwhile; ?>
-        </tbody>
-    </table>
-    <div class="pagination">
-    <button onclick="prevPage()" id="prev-btn" style = "font-family:'Akrobat', sans-serif;">Previous</button>
-    <span id="page-number" style = "font-family:'Akrobat', sans-serif;">Page 1</span>
-    <button onclick="nextPage()" id="next-btn" style = "font-family:'Akrobat', sans-serif;">Next</button>
-</div>
-</div>
+                <label for="start-date">Date Range:</label>
+                <input type="date" id="start-date" onchange="filterByDate()">
 
-<!-- Rejection Modal -->
-<div id="rejectModal" class="modal">
-    <div class="modal-content">
-        <span class="close"></span>
-        <h3>Reject Request</h3>
-        <textarea id="rejectionReason" rows="4" placeholder="Enter reason..."></textarea>
-        
-        <!-- Error message display (add this) -->
-        <p id="error-message" style="color: red; font-size: 14px; margin-top: 5px;"></p>
+                <label for="end-date">To:</label>
+                <input type="date" id="end-date" onchange="filterByDate()">
+            </div>
 
-        <div class="modal-buttons">
-            <button id="confirmReject" class="confirm-btn">Confirm</button>
-            <button id="cancelReject" class="cancel-btn">Cancel</button>
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Item Name</th>
+                        <th>Return Date</th>
+                        <th>Quantity</th>
+                        <th>Condition</th>
+                        <th>Notes</th>
+                        <th>Status</th>
+                        <th>Return Request Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="item-table-body">
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($row['username']); ?></td>
+                            <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+                            <td><?php echo htmlspecialchars($row['return_date']); ?></td>
+                            <td><?php echo htmlspecialchars($row['quantity']); ?></td>
+                            <td><?php echo htmlspecialchars($row['item_condition']); ?></td>
+                            <td><?php echo htmlspecialchars($row['notes']); ?></td>
+                            <td><?php echo htmlspecialchars($row['status']); ?></td>
+                            <td><?php echo htmlspecialchars($row['request_date']); ?></td>
+                            <td>
+                                <button class="approve-btn">Approve</button>
+                                <button class="reject-btn">Reject</button>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+            <div class="pagination">
+                <button onclick="prevPage()" id="prev-btn" style="font-family:'Akrobat', sans-serif;">Previous</button>
+                <span id="page-number" style="font-family:'Akrobat', sans-serif;">Page 1</span>
+                <button onclick="nextPage()" id="next-btn" style="font-family:'Akrobat', sans-serif;">Next</button>
+            </div>
         </div>
-    </div>
-</div>
 
-    <script src="../js/ItReturned.js"></script>
+        <!-- Rejection Modal -->
+        <div id="rejectModal" class="modal">
+            <div class="modal-content">
+                <span class="close"></span>
+                <h3>Reject Request</h3>
+                <textarea id="rejectionReason" rows="4" placeholder="Enter reason..."></textarea>
+
+                <!-- Error message display (add this) -->
+                <p id="error-message" style="color: red; font-size: 14px; margin-top: 5px;"></p>
+
+                <div class="modal-buttons">
+                    <button id="confirmReject" class="confirm-btn">Confirm</button>
+                    <button id="cancelReject" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="../js/ItReturned.js"></script>
 </body>
+
 </html>
