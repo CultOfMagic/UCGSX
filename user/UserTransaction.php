@@ -35,11 +35,13 @@ $currentUser = getCurrentUser($conn);
 $accountName = htmlspecialchars($currentUser['username'] ?? 'User');
 $currentUserId = $currentUser['user_id']; // Ensure this is properly set
 
-// Check if the 'requests' table exists
-$tableCheckQuery = "SHOW TABLES LIKE 'requests'";
-$tableCheckResult = $conn->query($tableCheckQuery);
-if ($tableCheckResult->num_rows === 0) {
-    die("Error: The 'requests' table does not exist in the database.");
+// Replace the table check with this:
+$requiredTables = ['borrow_requests', 'new_item_requests', 'return_requests', 'items'];
+foreach ($requiredTables as $table) {
+    $check = $conn->query("SHOW TABLES LIKE '$table'");
+    if ($check->num_rows === 0) {
+        die("Error: Required table '$table' does not exist in the database.");
+    }
 }
 
 // Fetch borrow requests for the logged-in user
@@ -84,16 +86,26 @@ $returnedRequestsQuery = "
     SELECT 
         items.item_name, 
         return_requests.quantity, 
-        return_requests.date_returned, 
+        return_requests.return_date, 
         return_requests.status 
     FROM return_requests 
-    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.primary_key -- Replace 'primary_key' with the correct column name
+    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.request_id -- Replace 'primary_key' with the correct column name
     JOIN items ON borrow_requests.item_id = items.item_id 
     WHERE borrow_requests.user_id = ?
 ";
 $returnedRequestsStmt = $conn->prepare($returnedRequestsQuery);
-$returnedRequestsStmt->bind_param("i", $currentUserId);
-$returnedRequestsStmt->execute();
+if ($returnedRequestsStmt === false) {
+    die("Error preparing returned requests statement: " . $conn->error);
+}
+
+if (!$returnedRequestsStmt->bind_param("i", $currentUserId)) {
+    die("Error binding parameters: " . $returnedRequestsStmt->error);
+}
+
+if (!$returnedRequestsStmt->execute()) {
+    die("Error executing statement: " . $returnedRequestsStmt->error);
+}
+
 $returnedRequestsResult = $returnedRequestsStmt->get_result();
 $returnedRequestsStmt->close();
 ?>

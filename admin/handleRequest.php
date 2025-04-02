@@ -13,6 +13,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $requestId = intval($_POST['request_id'] ?? 0);
     $reason = $_POST['reason'] ?? null;
 
+    if (!$requestId) {
+        echo json_encode(['success' => false, 'message' => 'Invalid request ID.']);
+        exit();
+    }
+
     if ($action === 'approve') {
         // Fetch request details
         $query = "SELECT user_id, item_name, item_category, quantity FROM new_item_requests WHERE request_id = ?";
@@ -27,31 +32,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $insertItemQuery = "INSERT INTO items (item_name, item_category, quantity, status) VALUES (?, ?, ?, 'Available')";
             $insertItemStmt = $conn->prepare($insertItemQuery);
             $insertItemStmt->bind_param("ssi", $request['item_name'], $request['item_category'], $request['quantity']);
-            $insertItemStmt->execute();
-            $itemId = $conn->insert_id;
-            $insertItemStmt->close();
+            if ($insertItemStmt->execute()) {
+                $itemId = $conn->insert_id;
+                $insertItemStmt->close();
 
-            // Update request status
-            $updateRequestQuery = "UPDATE new_item_requests SET status = 'Approved', item_id = ? WHERE request_id = ?";
-            $updateRequestStmt = $conn->prepare($updateRequestQuery);
-            $updateRequestStmt->bind_param("ii", $itemId, $requestId);
-            $updateRequestStmt->execute();
-            $updateRequestStmt->close();
+                // Update request status
+                $updateRequestQuery = "UPDATE new_item_requests SET status = 'Approved', item_id = ? WHERE request_id = ?";
+                $updateRequestStmt = $conn->prepare($updateRequestQuery);
+                $updateRequestStmt->bind_param("ii", $itemId, $requestId);
+                $updateRequestStmt->execute();
+                $updateRequestStmt->close();
 
-            // Notify the user
-            $notificationQuery = "INSERT INTO notifications (user_id, message, type, created_at) VALUES (?, ?, 'Info', NOW())";
-            $notificationStmt = $conn->prepare($notificationQuery);
-            $message = "Your request for the item '{$request['item_name']}' has been approved and added to the inventory.";
-            $notificationStmt->bind_param("is", $request['user_id'], $message);
-            $notificationStmt->execute();
-            $notificationStmt->close();
+                // Notify the user
+                $notificationQuery = "INSERT INTO notifications (user_id, message, type, created_at) VALUES (?, ?, 'Info', NOW())";
+                $notificationStmt = $conn->prepare($notificationQuery);
+                $message = "Your request for the item '{$request['item_name']}' has been approved and added to the inventory.";
+                $notificationStmt->bind_param("is", $request['user_id'], $message);
+                $notificationStmt->execute();
+                $notificationStmt->close();
 
-            echo json_encode(['success' => true, 'message' => 'Request approved and item added to inventory.']);
+                echo json_encode(['success' => true, 'message' => 'Request approved and item added to inventory.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to add item to inventory.']);
+            }
         } else {
             echo json_encode(['success' => false, 'message' => 'Request not found.']);
         }
     } elseif ($action === 'reject') {
-        // Reject the request with a reason
+        // Fetch request details
         $query = "SELECT user_id, item_name FROM new_item_requests WHERE request_id = ?";
         $stmt = $conn->prepare($query);
         $stmt->bind_param("i", $requestId);
@@ -59,11 +67,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $request = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
+        if (!$request) {
+            echo json_encode(['success' => false, 'message' => 'Request not found.']);
+            exit();
+        }
+
         if (empty($reason)) {
             echo json_encode(['success' => false, 'message' => 'Rejection reason is required.']);
             exit();
         }
 
+        // Reject the request with a reason
         $updateQuery = "UPDATE new_item_requests SET status = 'Rejected', notes = ? WHERE request_id = ?";
         $updateStmt = $conn->prepare($updateQuery);
         $updateStmt->bind_param("si", $reason, $requestId);

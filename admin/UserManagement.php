@@ -181,6 +181,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetchAllUsers'])) {
     exit;
 }
 
+// Define the getLoggedInUser() function
+function getLoggedInUser($conn) {
+    if (!isset($_SESSION['admin_id'])) {
+        header("Location: ../login/login.php");
+        exit();
+    }
+
+    $adminId = $_SESSION['admin_id'];
+    $stmt = $conn->prepare("SELECT username, email FROM admins WHERE admin_id = ?");
+    if (!$stmt) {
+        die('Database error: ' . $conn->error);
+    }
+    $stmt->bind_param("i", $adminId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $admin = $result->fetch_assoc();
+    $stmt->close();
+
+    return $admin ?: [];
+}
+
 $loggedInUser = getLoggedInUser($conn);
 if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
     header("Location: ../login/login.php");

@@ -97,18 +97,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($insertStmt->execute()) {
                             if ($insertStmt->affected_rows > 0) {
                                 // Log the transaction in the transactions table
-                                $transactionQuery = "INSERT INTO transactions (user_id, action, item_name, quantity, created_at) VALUES (?, 'New Item Request', ?, ?, NOW())";
+                                $transactionQuery = "INSERT INTO transactions (user_id, action, details, item_id, quantity, status, item_name) VALUES (?, 'New Item Request', ?, ?, ?, 'Pending', ?)";
                                 $transactionStmt = $conn->prepare($transactionQuery);
-
-                                if ($transactionStmt) {
-                                    $transactionStmt->bind_param("isi", $_SESSION['user_id'], $itemName, $quantity);
-                                    $transactionStmt->execute();
-                                    $transactionStmt->close();
-                                } else {
-                                    $errorMessage = 'Transaction logging failed: ' . htmlspecialchars($conn->error);
+                                if (!$transactionStmt) {
+                                    die('Database error: ' . $conn->error);
                                 }
+                                $details = "Requested $quantity of item '$itemName' in $itemCategory category.";
+                                $itemId = $conn->insert_id; // Assuming the last inserted ID corresponds to the item
+                                $transactionStmt->bind_param("isiss", $_SESSION['user_id'], $details, $itemId, $quantity, $itemName);
+                                $transactionStmt->execute();
+                                $transactionStmt->close();
 
-                                $successMessage = 'Your request has been submitted successfully and is pending admin approval.';
+                                header('Location: UserTransaction.php?success=1');
+                                exit();
                             } else {
                                 $errorMessage = 'Failed to submit your request. Please try again.';
                             }

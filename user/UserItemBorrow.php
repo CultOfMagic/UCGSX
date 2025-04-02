@@ -97,9 +97,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $details = "Borrowed $quantity of item '$itemName' in $itemCategory category.";
         $transactionStmt->bind_param("isiss", $userId, $details, $itemId, $quantity, $itemName);
-        $transactionStmt->execute();
+        if (!$transactionStmt->execute()) {
+            die('Failed to save transaction history: ' . $transactionStmt->error);
+        }
         $transactionStmt->close();
 
+        // Redirect to transaction page with success message
         header('Location: UserTransaction.php?success=1');
         exit();
     } else {

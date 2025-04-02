@@ -14,8 +14,11 @@ if (!function_exists('getLoggedInUser')) {
         if (!isset($_SESSION['user_id'])) {
             return null;
         }
-        $userId = $_SESSION['user_id'];
+        $userId = intval($_SESSION['user_id']); // Ensure user_id is an integer
         $stmt = $conn->prepare("SELECT username, role FROM users WHERE user_id = ?");
+        if (!$stmt) {
+            die("Prepare failed: " . $conn->error); // Debugging error message
+        }
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -26,8 +29,11 @@ if (!function_exists('getLoggedInUser')) {
 }
 
 // Fetch currently logged-in admin details
-$currentAdminId = $_SESSION['user_id'];
+$currentAdminId = intval($_SESSION['user_id']); // Ensure user_id is an integer
 $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error); // Debugging error message
+}
 $stmt->bind_param("i", $currentAdminId);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -37,7 +43,6 @@ $stmt->close();
 // Pass the current admin details to the frontend
 $accountName = $currentAdmin['username'] ?? 'User';
 $accountEmail = $currentAdmin['email'] ?? '';
-// Set a default value if the account name is not found
 if (empty($accountName)) {
     $accountName = 'Admin';
 }
@@ -49,27 +54,20 @@ if (!$loggedInUser || $loggedInUser['role'] !== 'Administrator') {
     exit();
 }
 
-$accountName = $loggedInUser['username'];
-$accountRole = $loggedInUser['role'];
-$query = "SELECT br.borrow_id AS request_id, u.username, br.item_name,
+$accountName = htmlspecialchars($loggedInUser['username']);
+$accountRole = htmlspecialchars($loggedInUser['role']);
+
+// Fetch borrow requests
+$query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_category,
                  br.date_needed, br.return_date, br.quantity, br.purpose, br.notes, 
                  br.status, br.request_date 
           FROM borrow_requests br 
-          JOIN users u ON br.user_id = u.user_id";
+          JOIN users u ON br.user_id = u.user_id
+          JOIN items i ON br.item_id = i.item_id";
 $result = $conn->query($query);
 
 if (!$result) {
-    die("Query failed: " . $conn->error);  // Debugging error message
-}
-
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        echo "<pre>";
-        print_r($row);  // Debugging: Print raw data
-        echo "</pre>";
-    }
-} else {
-    echo "No data found.";
+    die("Query failed: " . htmlspecialchars($conn->error)); // Debugging error message
 }
 ?>
 
@@ -165,24 +163,30 @@ if ($result->num_rows > 0) {
             </tr>
         </thead>
         <tbody id="item-table-body">
-<?php while ($row = $result->fetch_assoc()): ?>
-<tr>
-    <td><?php echo htmlspecialchars($row['username']); ?></td>
-    <td><?php echo htmlspecialchars($row['item_name']); ?></td>
-    <td><?php echo htmlspecialchars($row['item_type']); ?></td>
-    <td><?php echo htmlspecialchars($row['date_needed']); ?></td>
-    <td><?php echo htmlspecialchars($row['return_date']); ?></td>
-    <td><?php echo htmlspecialchars($row['quantity']); ?></td>
-    <td><?php echo htmlspecialchars($row['purpose']); ?></td>
-    <td><?php echo htmlspecialchars($row['notes']); ?></td>
-    <td><?php echo htmlspecialchars($row['status']); ?></td>
-    <td><?php echo htmlspecialchars($row['request_date']); ?></td>
-    <td>
-        <button class="approve-btn" data-request-id="<?php echo $row['request_id']; ?>">Approve</button>
-        <button class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
-    </td>
-</tr>
-<?php endwhile; ?>
+<?php if ($result->num_rows > 0): ?>
+    <?php while ($row = $result->fetch_assoc()): ?>
+    <tr>
+        <td><?php echo htmlspecialchars($row['username']); ?></td>
+        <td><?php echo htmlspecialchars($row['item_name']); ?></td>
+        <td><?php echo htmlspecialchars($row['item_category']); ?></td>
+        <td><?php echo htmlspecialchars($row['date_needed']); ?></td>
+        <td><?php echo htmlspecialchars($row['return_date']); ?></td>
+        <td><?php echo htmlspecialchars($row['quantity']); ?></td>
+        <td><?php echo htmlspecialchars($row['purpose']); ?></td>
+        <td><?php echo htmlspecialchars($row['notes']); ?></td>
+        <td><?php echo htmlspecialchars($row['status']); ?></td>
+        <td><?php echo htmlspecialchars($row['request_date']); ?></td>
+        <td>
+            <button class="approve-btn" data-request-id="<?php echo $row['request_id']; ?>">Approve</button>
+            <button class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
+        </td>
+    </tr>
+    <?php endwhile; ?>
+<?php else: ?>
+    <tr>
+        <td colspan="11">No data found.</td>
+    </tr>
+<?php endif; ?>
 </tbody>
 
     </table>

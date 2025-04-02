@@ -139,13 +139,7 @@ $chartData = [
             <canvas id="chart4" class="chart-container"></canvas>
         </div>
     </div>
-    
-    <!-- Moved main chart container here -->
-    <div class="main-chart-container">
-        <canvas id="mainChart"></canvas>
-    </div>
-    
-        
+            
         <div class="tables-section">
             <div class="table-container">
                 <h2>Recent Items</h2>

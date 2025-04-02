@@ -24,10 +24,8 @@ document.addEventListener("DOMContentLoaded", function () {
             localStorage.setItem("dropdownState", JSON.stringify(savedDropdownState));
         });
     });
-});
 
-// Profile Dropdown
-document.addEventListener("DOMContentLoaded", function () {
+    // Profile Dropdown
     const userIcon = document.getElementById("userIcon");
     const userDropdown = document.getElementById("userDropdown");
 
@@ -42,9 +40,8 @@ document.addEventListener("DOMContentLoaded", function () {
             userDropdown.classList.remove("show");
         }
     });
-});
-//table action for row
-document.addEventListener("DOMContentLoaded", function () {
+
+    // Table pagination and filtering
     const rowsPerPage = 5;
     let currentPage = 1;
     const tableBody = document.querySelector(".item-table tbody");
@@ -54,7 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function showPage(page) {
         if (filteredRows.length === 0) {
-            tableBody.innerHTML = "<tr><td colspan='6'>No results found</td></tr>";
+            tableBody.innerHTML = "<tr><td colspan='7'>No results found</td></tr>";
             document.getElementById("page-number").innerText = "No results";
             document.getElementById("prev-btn").disabled = true;
             document.getElementById("next-btn").disabled = true;
@@ -116,108 +113,8 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("next-btn").addEventListener("click", nextPage);
 
     showPage(currentPage);
-});
 
-
-//for reject button
-document.addEventListener("DOMContentLoaded", function () {
-    const modal = document.getElementById("rejectModal");
-    const closeModal = document.querySelector(".close");
-    const cancelBtn = document.getElementById("cancelReject");
-    const confirmReject = document.getElementById("confirmReject");
-    const rejectionReason = document.getElementById("rejectionReason");
-    const errorMessage = document.getElementById("error-message"); // Error message element
-    let currentRow = null; // Store the row where the button was clicked
-
-    // Handle Approve button click
-    document.querySelectorAll(".approve-btn").forEach(button => {
-        button.addEventListener("click", function () {
-            currentRow = this.closest("tr"); // Get the current row
-            if (currentRow) {
-                currentRow.cells[6].innerText = "Approved";
-                currentRow.cells[6].style.color = "green"; // Change color for visibility
-            }
-        });
-    });
-
-    // Open modal when Reject button is clicked
-    document.querySelectorAll(".reject-btn").forEach(button => {
-        button.addEventListener("click", function () {
-            currentRow = this.closest("tr"); // Get the current row
-            modal.style.display = "flex"; // Show modal
-        });
-    });
-
-    // Close modal when clicking "X" or Cancel
-    closeModal.onclick = cancelBtn.onclick = function () {
-        modal.style.display = "none";
-        rejectionReason.value = ""; // Clear input
-        errorMessage.textContent = ""; // Clear error message
-    };
-
-    // Confirm rejection (Require reason)
-    confirmReject.addEventListener("click", function () {
-        if (rejectionReason.value.trim() === "") {
-            errorMessage.textContent = "Please provide a reason for rejection.";
-            errorMessage.style.color = "red"; // Make it visually clear
-            return; // Stop function if no input
-        }
-
-        errorMessage.textContent = ""; // Clear error if input is valid
-
-        // Update status in the table
-        if (currentRow) {
-            currentRow.cells[6].innerText = "Rejected";
-            currentRow.cells[6].style.color = "red"; // Change color for visibility
-        }
-
-        // Close modal
-        modal.style.display = "none";
-        rejectionReason.value = ""; // Clear input
-    });
-
-    // Close modal if clicking outside the modal
-    window.addEventListener("click", function (event) {
-        if (event.target === modal) {
-            modal.style.display = "none";
-            rejectionReason.value = ""; // Clear input
-            errorMessage.textContent = ""; // Clear error message
-        }
-    });
-});
-
-document.addEventListener("DOMContentLoaded", function () {
-    const requestForm = document.getElementById("requestForm");
-
-    requestForm.addEventListener("submit", async function (event) {
-        event.preventDefault(); // Prevent default form submission
-
-        const formData = new FormData(requestForm);
-        const submitButton = requestForm.querySelector(".submit-btn");
-        submitButton.disabled = true; // Disable button to prevent multiple submissions
-
-        try {
-            const response = await fetch(requestForm.action, {
-                method: "POST",
-                body: formData,
-            });
-
-            const result = await response.json();
-            if (result.success) {
-                alert(result.message); // Display success message
-                requestForm.reset(); // Clear the form
-            } else {
-                alert(result.message); // Display error message
-            }
-        } catch (error) {
-            alert("An error occurred while submitting the form. Please try again.");
-        } finally {
-            submitButton.disabled = false; // Re-enable the button
-        }
-    });
-});
-
-document.addEventListener("DOMContentLoaded", function () {
+    // Request approval/rejection handling
     const approveButtons = document.querySelectorAll(".approve-btn");
     const rejectButtons = document.querySelectorAll(".reject-btn");
     const rejectModal = document.getElementById("rejectModal");
@@ -227,78 +124,133 @@ document.addEventListener("DOMContentLoaded", function () {
     const cancelReject = document.getElementById("cancelReject");
     let currentRequestId = null;
 
-    approveButtons.forEach(button => {
-        button.addEventListener("click", function () {
-            const requestId = this.closest("tr").dataset.requestId;
+    // Verify request status with backend
+    async function verifyRequestStatus(requestId, expectedStatus) {
+        try {
+            const response = await fetch(`ItemRequest.php?verify_request=1&request_id=${requestId}`);
+            const data = await response.json();
+            return data.status === expectedStatus;
+        } catch (error) {
+            console.error("Verification failed:", error);
+            return false;
+        }
+    }
 
-            fetch("ItemRequest.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: `action=approve&request_id=${requestId}`
-            })
-            .then(response => response.json())
-            .then(data => {
+    // Approve button handler
+    approveButtons.forEach(button => {
+        button.addEventListener("click", async function() {
+            if (!confirm("Are you sure you want to approve this request?")) return;
+            
+            const requestId = this.closest("tr").dataset.requestId;
+            const row = this.closest("tr");
+            
+            try {
+                const response = await fetch("ItemRequest.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: `action=approve&request_id=${requestId}`
+                });
+                
+                if (!response.ok) throw new Error("Network response was not ok");
+                
+                const data = await response.json();
+                
                 if (data.success) {
-                    alert(data.message);
-                    location.reload();
+                    // Update UI immediately
+                    row.dataset.status = "Approved";
+                    const statusCell = row.cells[5]; // Status cell (6th column)
+                    statusCell.textContent = "Approved";
+                    statusCell.style.color = "green";
+                    
+                    // Remove action buttons
+                    const actionCell = row.cells[6]; // Actions cell (7th column)
+                    actionCell.innerHTML = "";
+                    
+                    // Add visual feedback
+                    row.style.backgroundColor = "#e6f7e6";
+                    
+                    // Verify with backend
+                    const verified = await verifyRequestStatus(requestId, "Approved");
+                    if (!verified) throw new Error("Status verification failed");
+                    
+                    alert("Request approved successfully!");
                 } else {
-                    alert(data.message);
+                    throw new Error(data.message);
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error("Error:", error);
-                alert("An error occurred while processing the request.");
-            });
+                alert("Error: " + error.message);
+                location.reload();
+            }
         });
     });
 
+    // Reject button handler
     rejectButtons.forEach(button => {
-        button.addEventListener("click", function () {
+        button.addEventListener("click", function(e) {
+            e.preventDefault();
             currentRequestId = this.closest("tr").dataset.requestId;
             rejectionReason.value = "";
             errorMessage.textContent = "";
-            rejectModal.style.display = "block";
+            rejectModal.style.display = "flex";
         });
     });
 
-    confirmReject.addEventListener("click", function () {
+    confirmReject.addEventListener("click", async function() {
         const reason = rejectionReason.value.trim();
-
         if (!reason) {
             errorMessage.textContent = "Rejection reason is required.";
             return;
         }
 
-        fetch("ItemRequest.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `action=reject&request_id=${currentRequestId}&reason=${encodeURIComponent(reason)}`
-        })
-        .then(response => response.json())
-        .then(data => {
+        try {
+            const response = await fetch("ItemRequest.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `action=reject&request_id=${currentRequestId}&reason=${encodeURIComponent(reason)}`
+            });
+            
+            if (!response.ok) throw new Error("Network response was not ok");
+            
+            const data = await response.json();
+            
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                const row = document.querySelector(`tr[data-request-id="${currentRequestId}"]`);
+                row.dataset.status = "Rejected";
+                const statusCell = row.cells[5]; // Status cell
+                statusCell.textContent = "Rejected";
+                statusCell.style.color = "red";
+                
+                // Remove action buttons
+                const actionCell = row.cells[6]; // Actions cell
+                actionCell.innerHTML = "";
+                
+                // Add visual feedback
+                row.style.backgroundColor = "#ffebeb";
+                
+                // Verify with backend
+                const verified = await verifyRequestStatus(currentRequestId, "Rejected");
+                if (!verified) throw new Error("Status verification failed");
+                
+                alert("Request rejected successfully!");
+                rejectModal.style.display = "none";
             } else {
-                alert(data.message);
+                throw new Error(data.message);
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error("Error:", error);
-            alert("An error occurred while processing the request.");
-        });
+            alert("Error: " + error.message);
+            location.reload();
+        }
+    });
 
+    cancelReject.addEventListener("click", function() {
         rejectModal.style.display = "none";
     });
 
-    cancelReject.addEventListener("click", function () {
-        rejectModal.style.display = "none";
-    });
-
-    window.addEventListener("click", function (event) {
+    window.addEventListener("click", function(event) {
         if (event.target === rejectModal) {
             rejectModal.style.display = "none";
         }
     });
 });
-//Search and Filter Script

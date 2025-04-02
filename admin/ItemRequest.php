@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'approve') {
         // Approve the request
-        $query = "SELECT item_name, item_category, quantity FROM new_item_requests WHERE request_id = ?";
+        $query = "SELECT item_name, item_category, quantity, user_id FROM new_item_requests WHERE request_id = ?";
         $stmt = $conn->prepare($query);
         $stmt->bind_param("i", $requestId);
         $stmt->execute();
@@ -59,6 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updateRequestStmt->execute();
             $updateRequestStmt->close();
 
+            // Notify the user
+            $notificationMessage = "Your request for '{$request['item_name']}' has been approved.";
+            $insertNotificationQuery = "INSERT INTO notifications (user_id, message, created_at) VALUES (?, ?, NOW())";
+            $insertNotificationStmt = $conn->prepare($insertNotificationQuery);
+            if ($insertNotificationStmt) {
+                $insertNotificationStmt->bind_param("is", $request['user_id'], $notificationMessage);
+                $insertNotificationStmt->execute();
+                $insertNotificationStmt->close();
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to prepare notification query.']);
+                exit;
+            }
+
             echo json_encode(['success' => true, 'message' => 'Request approved and item added to inventory.']);
         } else {
             echo json_encode(['success' => false, 'message' => 'Request not found.']);
@@ -71,14 +84,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Update the request status to "Rejected" with the reason
-        $updateRequestQuery = "UPDATE new_item_requests SET status = 'Rejected', notes = ? WHERE request_id = ?";
-        $updateRequestStmt = $conn->prepare($updateRequestQuery);
-        $updateRequestStmt->bind_param("si", $reason, $requestId);
-        $updateRequestStmt->execute();
-        $updateRequestStmt->close();
+        // Fetch user_id for notification
+        $query = "SELECT user_id, item_name FROM new_item_requests WHERE request_id = ?";
+        $stmt = $conn->prepare($query);
+        if ($stmt) {
+            $stmt->bind_param("i", $requestId);
+            $stmt->execute();
+            $request = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to fetch request details.']);
+            exit;
+        }
 
-        echo json_encode(['success' => true, 'message' => 'Request rejected with reason provided.']);
+        if ($request) {
+            // Update the request status to "Rejected" with the reason
+            $updateRequestQuery = "UPDATE new_item_requests SET status = 'Rejected', notes = ? WHERE request_id = ?";
+            $updateRequestStmt = $conn->prepare($updateRequestQuery);
+            if ($updateRequestStmt) {
+                $updateRequestStmt->bind_param("si", $reason, $requestId);
+                $updateRequestStmt->execute();
+                $updateRequestStmt->close();
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to update request status.']);
+                exit;
+            }
+
+            // Notify the user
+            $notificationMessage = "Your request for '{$request['item_name']}' has been rejected. Reason: $reason";
+            $insertNotificationQuery = "INSERT INTO user_notifications (user_id, message, created_at) VALUES (?, ?, NOW())";
+            $insertNotificationStmt = $conn->prepare($insertNotificationQuery);
+            if ($insertNotificationStmt) {
+                $insertNotificationStmt->bind_param("is", $request['user_id'], $notificationMessage);
+                $insertNotificationStmt->execute();
+                $insertNotificationStmt->close();
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to send rejection notification.']);
+                exit;
+            }
+
+            echo json_encode(['success' => true, 'message' => 'Request rejected with reason provided.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Request not found.']);
+        }
     }
     exit;
 }

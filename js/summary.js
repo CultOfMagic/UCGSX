@@ -108,6 +108,10 @@ document.addEventListener("DOMContentLoaded", function () {
         showPage(currentPage);
     }
 
+    // Attach input event listener for automatic search
+    const searchInput = document.getElementById("search-input");
+    searchInput.addEventListener("input", searchTable);
+
     function resetSearch() {
         document.getElementById("search-input").value = "";
         filteredRows = [...rows]; // Restore all rows
