@@ -55,21 +55,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Fetch item details
-    $itemCheckStmt = $conn->prepare("SELECT item_name, quantity FROM items WHERE item_id = ?");
+    $itemCheckStmt = $conn->prepare("SELECT item_name, quantity, item_category FROM items WHERE item_id = ? AND item_category = ? AND quantity > 0");
     if (!$itemCheckStmt) {
         die('Database error: ' . $conn->error);
     }
-    $itemCheckStmt->bind_param("i", $itemId);
+    $itemCheckStmt->bind_param("is", $itemId, $itemCategory);
     $itemCheckStmt->execute();
     $itemResult = $itemCheckStmt->get_result();
     $itemData = $itemResult->fetch_assoc();
     $itemCheckStmt->close();
 
     if (!$itemData || $itemData['quantity'] < $quantity) {
-        die('Insufficient item quantity available.');
+        die('Insufficient item quantity available or item does not exist in the selected category.');
     }
 
     $itemName = htmlspecialchars($itemData['item_name']);
+
+    // Check if the item already exists in the new_item_requests table
+    $checkQuery = "SELECT COUNT(*) AS count FROM new_item_requests WHERE item_name = ? AND user_id = ? AND status = 'Pending'";
+    $checkStmt = $conn->prepare($checkQuery);
+    if ($checkStmt) {
+        $checkStmt->bind_param("si", $itemName, $userId);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $row = $checkResult->fetch_assoc();
+        $checkStmt->close();
+
+        if ($row['count'] > 0) {
+            die('You already have a pending request for this item.');
+        }
+    } else {
+        die('Database error: Unable to prepare statement. ' . htmlspecialchars($conn->error));
+    }
 
     // Insert borrow request
     $stmt = $conn->prepare("INSERT INTO borrow_requests (user_id, item_id, quantity, date_needed, return_date, purpose, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')");
@@ -111,47 +128,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->close();
 } 
 
-// Fetch items based on category for dynamic population with pagination
+// Fetch items based on category for dynamic population
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
-    $category = $_GET['item_category'];
-    $page = intval($_GET['page'] ?? 1);
-    $itemsPerPage = 10; // Number of items per page
-    $offset = ($page - 1) * $itemsPerPage;
+    $category = htmlspecialchars($_GET['item_category']);
 
-    $stmt = $conn->prepare("SELECT item_id, item_name FROM items WHERE item_category = ? AND quantity > 0 LIMIT ? OFFSET ?");
-    if (!$stmt) {
-        die('Database error: ' . $conn->error);
+    // Validate category input
+    if (empty($category)) {
+        header('Content-Type: application/json', true, 400);
+        echo json_encode(['error' => 'Item category is required']);
+        exit();
     }
-    $stmt->bind_param("sii", $category, $itemsPerPage, $offset);
+
+    // Prepare and execute the query
+    $stmt = $conn->prepare("SELECT item_id, item_name FROM items WHERE item_category = ? AND quantity > 0");
+    if (!$stmt) {
+        header('Content-Type: application/json', true, 500);
+        echo json_encode(['error' => 'Database error: ' . $conn->error]);
+        exit();
+    }
+    $stmt->bind_param("s", $category);
     $stmt->execute();
     $result = $stmt->get_result();
+
+    // Fetch items and build the response
     $items = [];
     while ($row = $result->fetch_assoc()) {
         $items[] = $row;
     }
     $stmt->close();
 
-    // Get total item count for pagination
-    $countStmt = $conn->prepare("SELECT COUNT(*) as total FROM items WHERE item_category = ? AND quantity > 0");
-    if (!$countStmt) {
-        die('Database error: ' . $conn->error);
-    }
-    $countStmt->bind_param("s", $category);
-    $countStmt->execute();
-    $countResult = $countStmt->get_result();
-    $totalItems = $countResult->fetch_assoc()['total'];
-    $countStmt->close();
-
-    $response = [
-        'items' => $items,
-        'totalItems' => $totalItems,
-        'itemsPerPage' => $itemsPerPage,
-        'currentPage' => $page,
-        'totalPages' => ceil($totalItems / $itemsPerPage),
-    ];
-
+    // Return the items as JSON
     header('Content-Type: application/json');
-    echo json_encode($response);
+    echo json_encode($items);
     exit();
 }
 ?>
@@ -222,6 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
                             <option value="electronics">Electronics</option>
                             <option value="furniture">Furniture</option>
                             <option value="stationery">Stationery</option>
+                            <option value="accesories">Accessories</option>
                             <option value="consumables">Consumables</option>
                         </select>
                     </div>

@@ -63,7 +63,8 @@ $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_cat
                  br.status, br.request_date 
           FROM borrow_requests br 
           JOIN users u ON br.user_id = u.user_id
-          JOIN items i ON br.item_id = i.item_id";
+          JOIN items i ON br.item_id = i.item_id
+          WHERE br.status = 'Pending'";
 $result = $conn->query($query);
 
 if (!$result) {
@@ -114,7 +115,7 @@ if (!$result) {
             </a>
             <ul class="dropdown-content">
                 <li><a href="ItemRecords.php"> Item Records</a></li>
-                <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
+                <!-- Removed Inventory Summary -->
             </ul>
         </li>
         <li class="dropdown">

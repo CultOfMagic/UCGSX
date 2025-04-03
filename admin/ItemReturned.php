@@ -8,8 +8,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
     exit();
 }
 
-// Fetch currently logged-in admin details
-$currentAdminId = $_SESSION['user_id'];
+// Fetch the logged-in admin's details
+$currentAdminId = intval($_SESSION['user_id']);
 $stmt = $conn->prepare("SELECT username, email, role FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $currentAdminId);
 $stmt->execute();
@@ -17,19 +17,53 @@ $result = $stmt->get_result();
 $currentAdmin = $result->fetch_assoc();
 $stmt->close();
 
-// Pass the current admin details to the frontend
-$accountName = $currentAdmin['username'] ?? 'User';
-$accountEmail = $currentAdmin['email'] ?? '';
-$accountRole = $currentAdmin['role'] ?? '';
+// Pass admin details to the frontend
+$accountName = htmlspecialchars($currentAdmin['username'] ?? 'User');
+$accountEmail = htmlspecialchars($currentAdmin['email'] ?? '');
+$accountRole = htmlspecialchars($currentAdmin['role'] ?? '');
 
-// Fetch returned items data
-$query = "SELECT r.return_id, r.borrow_id, r.return_date, i.item_name 
-FROM return_requests r 
-JOIN items i ON r.borrow_id = i.item_id;";
+// Fetch items with status 'Approved' and a valid return date
+$query = "SELECT br.borrow_id, br.return_date, i.item_name, br.quantity, br.status, u.username
+          FROM borrow_requests br
+          JOIN items i ON br.item_id = i.item_id
+          JOIN users u ON br.user_id = u.user_id
+          WHERE br.status = 'Approved' AND br.return_date IS NOT NULL";
+
 $result = $conn->query($query);
 
 if (!$result) {
-    die("Error executing query: " . $conn->error);
+    die("Error fetching borrow requests: " . htmlspecialchars($conn->error));
+}
+
+// Handle return request submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    // Validate inputs
+    if (!isset($input['borrow_id']) || empty($input['borrow_id'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid request. Missing borrow ID.']);
+        exit();
+    }
+
+    $borrowId = intval($input['borrow_id']);
+
+    // Update the status to 'Returned'
+    $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Returned' WHERE borrow_id = ?");
+    if (!$stmt) {
+        echo json_encode(['success' => false, 'message' => 'Failed to prepare SQL statement.']);
+        exit();
+    }
+
+    $stmt->bind_param("i", $borrowId);
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Return item request submitted successfully.']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to update return status.']);
+    }
+
+    $stmt->close();
+    exit();
 }
 ?>
 
@@ -77,7 +111,7 @@ if (!$result) {
                 </a>
                 <ul class="dropdown-content">
                     <li><a href="ItemRecords.php"> Item Records</a></li>
-                    <li><a href="InventorySummary.php"> Inventory Summary</a></li>
+                    <!-- Removed Inventory Summary -->
                 </ul>
             </li>
             <li class="dropdown">

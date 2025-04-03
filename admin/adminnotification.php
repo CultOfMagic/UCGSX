@@ -223,7 +223,7 @@ $totalNotifications = count($allRequests);
                 </a>
                 <ul class="dropdown-content">
                     <li><a href="ItemRecords.php"> Item Records</a></li>
-                    <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
+                    <!-- Removed Inventory Summary -->
                 </ul>
             </li>
             <li class="dropdown">

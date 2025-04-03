@@ -210,10 +210,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="item-category">Category:</label>
                         <select id="item-category" name="item-category" required>
                             <option value="">Select Category</option>
-                            <option value="Electronics">Electronics</option>
-                            <option value="Stationery">Stationery</option>
-                            <option value="Furniture">Furniture</option>
-                            <option value="Consumables">Consumables</option>
+                            <option value="electronics">Electronics</option>
+                            <option value="stationary">Stationary</option>
+                            <option value="furniture">Furniture</option>
+                            <option value="accesories">Accessories</option>
+                            <option value="consumables">Consumables</option>
                         </select>
                     </div>
                 </div>

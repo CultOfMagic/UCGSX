@@ -1,91 +1,62 @@
 <?php
+include '../config/db_connection.php';
 session_start();
-include '../config/db_connection.php'; // Include database connection
 
-// Verify User session
+// Verify admin session
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
-    header("Location: ../login/login.php");
     exit();
 }
 
-function getCurrentUser($conn) {
-    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'User') {
-        header("Location: ../login/login.php");
+// Retrieve the logged-in user's name
+$accountName = isset($_SESSION['username']) ? $_SESSION['username'] : 'Guest'; // Default to 'Guest' if not set
+
+// Handle POST request to submit a return item request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    // Validate required inputs
+    if (!isset($input['borrow_id'], $input['return_date'], $input['item_condition'], $input['quantity'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid request. Missing required parameters.']);
         exit();
     }
 
-    $userId = $_SESSION['user_id'];
-    $stmt = $conn->prepare("SELECT username, email FROM users WHERE user_id = ?");
-    if (!$stmt) {
-        die("Database error: " . $conn->error);
-    }
-    $stmt->bind_param("i", $userId);
+    $borrowId = intval($input['borrow_id']);
+    $returnDate = $input['return_date'];
+    $itemCondition = $input['item_condition'];
+    $quantity = intval($input['quantity']);
+    $notes = isset($input['notes']) ? trim($input['notes']) : null;
+
+    // Check if borrow_id exists and status is 'Approved'
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM borrow_requests WHERE borrow_id = ? AND status = 'Approved'");
+    $stmt->bind_param("i", $borrowId);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
+    $stmt->bind_result($count);
+    $stmt->fetch();
     $stmt->close();
 
-    return $user ?: ['username' => 'User', 'email' => ''];
-}
-
-$currentUser = getCurrentUser($conn);
-$accountName = htmlspecialchars($currentUser['username']);
-$accountEmail = htmlspecialchars($currentUser['email']);
-
-// Fetch approved borrow requests with item details
-$approved_items = [];
-$sql = "SELECT br.borrow_id AS id, br.item_id, i.item_name 
-        FROM borrow_requests br 
-        JOIN items i ON br.item_id = i.item_id 
-        WHERE br.status = 'approved'";
-$result = $conn->query($sql);
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $approved_items[] = $row;
+    if ($count === 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid borrow ID or request is not approved.']);
+        exit();
     }
-}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $itemId = $_POST['item_id'];
-    $itemCategory = $_POST['item_category'];
-    $quantity = $_POST['quantity'];
-    $returnDate = $_POST['return_date'];
-    $condition = $_POST['condition'];
-    $notes = $_POST['notes'];
-    $userId = $_SESSION['user_id'];
+    // Insert the return request into return_requests table
+    $stmt = $conn->prepare("INSERT INTO return_requests (borrow_id, return_date, item_condition, quantity, notes) 
+                            VALUES (?, ?, ?, ?, ?)");
+    if (!$stmt) {
+        echo json_encode(['success' => false, 'message' => 'Failed to prepare SQL statement.']);
+        exit();
+    }
 
-    // Validate inputs
-    if (empty($itemId) || empty($itemCategory) || empty($quantity) || empty($returnDate) || empty($condition)) {
-        $error_message = "All fields except 'Additional Notes' are required.";
+    $stmt->bind_param("issis", $borrowId, $returnDate, $itemCondition, $quantity, $notes);
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Return request submitted successfully.']);
     } else {
-        // Check if the item exists in approved borrow requests
-        $stmt = $conn->prepare("SELECT quantity FROM borrow_requests WHERE borrow_id = ? AND user_id = ? AND status = 'approved'");
-        if (!$stmt) {
-            die("Database error: " . $conn->error);
-        }
-        $stmt->bind_param("ii", $itemId, $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $borrowedItem = $result->fetch_assoc();
-        $stmt->close();
-
-        if (!$borrowedItem || $borrowedItem['quantity'] < $quantity) {
-            $error_message = "Invalid return quantity or item not found in approved borrow requests.";
-        } else {
-            // Insert return request into the database
-            $stmt = $conn->prepare("INSERT INTO return_requests (user_id, item_id, item_category, quantity, return_date, item_condition, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
-            if (!$stmt) {
-                die("Database error: " . $conn->error);
-            }
-            $stmt->bind_param("iisisss", $userId, $itemId, $itemCategory, $quantity, $returnDate, $condition, $notes);
-            if ($stmt->execute()) {
-                $success_message = "Return request submitted successfully.";
-            } else {
-                $error_message = "Failed to submit return request. Please try again.";
-            }
-            $stmt->close();
-        }
+        echo json_encode(['success' => false, 'message' => 'Failed to submit return request.']);
     }
+
+    $stmt->close();
+    exit();
 }
 ?>
 
@@ -103,24 +74,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <header class="header">
-        <div class="header-content">
-            <div class="left-side">
-                <img src="../assets/img/Logo.png" alt="UCGS Inventory Logo" class="logo">
-                <span class="website-name">UCGS Inventory</span>
-            </div>
-            <div class="right-side">
-                <div class="user">
-                    <img src="../assets/img/users.png" alt="User profile" class="icon" id="userIcon">
-                    <span class="user-text"><?php echo htmlspecialchars($accountName); ?></span> <!-- Display logged-in user's username -->
-                    <div class="user-dropdown" id="userDropdown">
-                        <a href="userprofile.php"><img src="../assets/img/updateuser.png" alt="Profile" class="dropdown-icon"> Profile</a>
-                        <a href="usernotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
-                        <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout" class="dropdown-icon"> Logout</a>
-                    </div>
+    <div class="header-content">
+        <div class="left-side">
+            <img src="../assets/img/Logo.png" alt="UCGS Inventory Logo" class="logo">
+            <span class="website-name">UCGS Inventory</span>
+        </div>
+        <div class="right-side">
+            <div class="user">
+                <img src="../assets/img/users.png" alt="User profile" class="icon" id="userIcon">
+                <span class="user-text"><?php echo htmlspecialchars($accountName); ?></span> <!-- Display logged-in user's username -->
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="userprofile.php"><img src="../assets/img/updateuser.png" alt="Profile" class="dropdown-icon"> Profile</a>
+                    <a href="usernotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
+                    <a href="../login/logout.php"><img src="../assets/img/logout.png" alt="Logout" class="dropdown-icon"> Logout</a>
                 </div>
             </div>
         </div>
-    </header>
+    </div>
+</header>
 
     <aside class="sidebar">
         <ul>
@@ -165,11 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="form-group">
                         <label for="item-category">Item Category:</label>
                         <select id="item-category" name="item_category" required>
-                            <option value="" disabled selected>Select a Category</option>
-                            <option value="electronics">Electronics</option>
-                            <option value="furniture">Furniture</option>
-                            <option value="stationery">Stationery</option>
-                            <option value="consumables">Consumables</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="stationary">Stationary</option>
+                        <option value="furniture">Furniture</option>
+                        <option value="accesories">Accessories</option>
+                        <option value="consumables">Consumables</option>
                         </select>
                     </div>
                 </div>

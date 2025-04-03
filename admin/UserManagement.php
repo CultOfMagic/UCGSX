@@ -181,25 +181,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetchAllUsers'])) {
     exit;
 }
 
-// Define the getLoggedInUser() function
+/**
+ * Retrieves the details of the currently logged-in user.
+ *
+ * @param mysqli $conn The database connection.
+ * @return array|null The user details or null if not found.
+ */
 function getLoggedInUser($conn) {
-    if (!isset($_SESSION['admin_id'])) {
-        header("Location: ../login/login.php");
-        exit();
+    if (!isset($_SESSION['user_id'])) {
+        return null;
     }
 
-    $adminId = $_SESSION['admin_id'];
-    $stmt = $conn->prepare("SELECT username, email FROM admins WHERE admin_id = ?");
-    if (!$stmt) {
-        die('Database error: ' . $conn->error);
-    }
-    $stmt->bind_param("i", $adminId);
+    $userId = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT user_id, username, role FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $userId);
     $stmt->execute();
     $result = $stmt->get_result();
-    $admin = $result->fetch_assoc();
+    $user = $result->fetch_assoc();
     $stmt->close();
 
-    return $admin ?: [];
+    return $user;
 }
 
 $loggedInUser = getLoggedInUser($conn);
@@ -256,7 +257,7 @@ $accountRole = $loggedInUser['role'];
             </a>
             <ul class="dropdown-content">
                 <li><a href="ItemRecords.php"><i class=""></i> Item Records</a></li>
-                <li><a href="InventorySummary.php"><i class=""></i> Inventory Summary</a></li>   
+                <!-- Removed Inventory Summary -->
             </ul>
         </li>
 

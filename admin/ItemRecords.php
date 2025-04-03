@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </a>
                 <ul class="dropdown-content">
                     <li><a href="ItemRecords.php"> Item Records</a></li>
-                    <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
+                    <!-- Removed Inventory Summary -->
                 </ul>
             </li>
             <li class="dropdown">
@@ -360,9 +360,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label for="item-category">Item Category</label>
             <select id="item-category">
             <option value="Choose">-- Select Category --</option>
-                <option value="electronics">Electronics</option>
+            <option value="electronics">Electronics</option>
                 <option value="stationary">Stationary</option>
                 <option value="furniture">Furniture</option>
+                <option value="accesories">Accessories</option>
                 <option value="consumables">Consumables</option>
             </select>
             <button type="submit">Submit</button>

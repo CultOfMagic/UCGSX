@@ -50,7 +50,7 @@ INSERT INTO `users` (`user_id`, `username`, `email`, `password`, `role`, `minist
 (5, 'Nerizza Joy Mabazza', 'nerijoyanonuevo@gmail.com', '$2y$10$EZ9UDHzES2QxPA9NHe/xJuV1rbeRpWrnhqgthliWBxQN9s5MdhTNy', 'User', 'CYF', '2025-03-24 19:31:24', NULL, 'Active'),
 (6, 'Benito Mussolini', 'benitomussolini@gmail.com', '$2y$10$7zQYaKZi2mO2bgL2wT1poe2hI/ygl0Q8YJtYzV3o9GPsRaz8F2Fdu', 'User', 'UCM', '2025-03-24 20:05:50', NULL, 'Active'),
 (7, 'Peanut', 'peanutbutter@gmail.com', '$2y$10$qhyLUSurql.bMWZqZymFFeJxJ81oIMKqYVuilVaSaaLR0ezN5QBxm', 'Administrator', 'CWA', '2025-03-24 20:48:33', NULL, 'Active'),
-(8, 'Diamond', 'diamond@gmail.com', '$2y$10$zN0QPUmD0g1HnkU9/JrKROSp1BWczvgNRvuY.OinVF71Xiz/ERgxO', 'User', 'PWT', '2025-03-24 22:02:39', NULL, 'Active'),
+(8, 'Diamond', 'diamond@gmail.com', '$2y$10$zN0QPUmD0g1HnkU9/JrKROSp1BWczvgNRvuY.OinVF71Xiz/ERgxO', 'User', 'PWT', '2025-03-24 22:02:39', NULL, 'Active');
 (9, 'SampleAccountName1', 'SampleEmail@gmail.com', '$2y$10$6IBC5nHRcO1zftbm6fAyaeZ0bc7EU1zWXQ65CI/YS8P7rIpEWfbSa', 'User', 'UCM', '2025-03-24 23:56:12', NULL, 'Active'),
 (10, 'SampleAccountName2', 'SampleAccountEmail2@mail.com', '$2y$10$NA3tbWKXYouOfVA0Zo3S...dulnLzOUZ2LBeQTShkbRNQTZEz5iA6', 'Administrator', 'PWT', '2025-03-25 08:09:44', NULL, 'Active');
 

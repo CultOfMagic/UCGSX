@@ -41,6 +41,38 @@ try {
 
 
 
+// Initialize variables with default values
+$approvedRequestsCount = 0;
+$pendingRequestsCount = 0;
+
+// 1. Query for approved requests count
+$approvedQuery = $conn->query("SELECT COUNT(*) FROM new_item_requests WHERE status = 'approved'");
+if ($approvedQuery === false) {
+    die("Error fetching approved requests: " . $conn->error);
+} else {
+    $approvedRequestsCount = $approvedQuery->fetch_row()[0];
+    $approvedQuery->free(); // Free the result set
+}
+
+// 2. Query for pending requests count
+$pendingQuery = $conn->query("SELECT COUNT(*) FROM new_item_requests WHERE status = 'pending'");
+if ($pendingQuery === false) {
+    die("Error fetching pending requests: " . $conn->error);
+} else {
+    $pendingRequestsCount = $pendingQuery->fetch_row()[0];
+    $pendingQuery->free(); // Free the result set
+}
+
+// Prepare data for the chart
+$chartData = [
+    'users' => $userCount,
+    'items' => $itemCount,
+    'approvedRequests' => $approvedRequestsCount,
+    'pendingRequests' => $pendingRequestsCount
+];
+
+
+
 // Prepare data for the main chart
 $chartData = [
     'users' => $userCount,
@@ -92,7 +124,6 @@ $chartData = [
                 </a>
                 <ul class="dropdown-content">
                     <li><a href="ItemRecords.php"> Item Records</a></li>
-                    <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
                 </ul>
             </li>
             <li class="dropdown">
@@ -139,7 +170,13 @@ $chartData = [
             <canvas id="chart4" class="chart-container"></canvas>
         </div>
     </div>
-            
+    
+    <!-- Moved main chart container here -->
+    <div class="main-chart-container">
+        <canvas id="mainChart"></canvas>
+    </div>
+    
+        
         <div class="tables-section">
             <div class="table-container">
                 <h2>Recent Items</h2>

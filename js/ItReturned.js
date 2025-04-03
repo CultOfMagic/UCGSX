@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Search & Filter
 document.addEventListener("DOMContentLoaded", function () {
-    const rowsPerPage = 7;
+    const rowsPerPage = 10;
     let currentPage = 1;
     const tableBody = document.getElementById("item-table-body");
     const rows = Array.from(tableBody.getElementsByTagName("tr"));
@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function showPage(page) {
         if (filteredRows.length === 0) {
-            tableBody.innerHTML = "<tr><td colspan='9'>No results found</td></tr>";
+            tableBody.innerHTML = "<tr><td colspan='11'>No results found</td></tr>";
             document.getElementById("page-number").innerText = "No results";
             document.getElementById("prev-btn").disabled = true;
             document.getElementById("next-btn").disabled = true;

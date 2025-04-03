@@ -78,16 +78,36 @@ document.getElementById('item-category').addEventListener('change', function () 
 
     if (category) {
         fetch(`UserItemBorrow.php?item_category=${encodeURIComponent(category)}`)
-            .then(response => response.json())
-            .then(items => {
-                items.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item.item_id;
-                    option.textContent = item.item_name;
-                    itemDropdown.appendChild(option);
-                });
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
             })
-            .catch(error => console.error('Error fetching items:', error));
+            .then(items => {
+                if (Array.isArray(items) && items.length > 0) {
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.item_id;
+                        option.textContent = item.item_name;
+                        itemDropdown.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = "";
+                    option.disabled = true;
+                    option.textContent = "No items available for this category";
+                    itemDropdown.appendChild(option);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching items:', error);
+                const option = document.createElement('option');
+                option.value = "";
+                option.disabled = true;
+                option.textContent = "Error loading items. Please try again.";
+                itemDropdown.appendChild(option);
+            });
     }
 });
 

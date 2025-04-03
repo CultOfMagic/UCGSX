@@ -223,7 +223,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </a>
             <ul class="dropdown-content">
                 <li><a href="ItemRecords.php"> Item Records</a></li>
-                <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
             </ul>
         </li>
         <li class="dropdown">
