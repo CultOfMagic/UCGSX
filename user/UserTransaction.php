@@ -1,5 +1,5 @@
 <?php
-include '../config/db_connection.php';
+include 'db_connection.php';
 session_start();
 
 // Verify User session
@@ -89,7 +89,7 @@ $returnedRequestsQuery = "
         return_requests.return_date, 
         return_requests.status 
     FROM return_requests 
-    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.request_id -- Replace 'primary_key' with the correct column name
+    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.borrow_id -- Replace 'primary_key' with the correct column name
     JOIN items ON borrow_requests.item_id = items.item_id 
     WHERE borrow_requests.user_id = ?
 ";
@@ -213,7 +213,7 @@ $returnedRequestsStmt->close();
     </table>
 </main>
 
-<script src="../js/UserTransactions.js"></script>
+<script src="../js/UserTransact.js"></script>
 <script>
     // Sidebar dropdown functionality
     document.querySelectorAll('.dropdown-btn').forEach(button => {

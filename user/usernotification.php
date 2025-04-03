@@ -24,7 +24,7 @@ $accountName = htmlspecialchars($currentUser['username'] ?? 'User');
 $accountEmail = htmlspecialchars($currentUser['email'] ?? '');
 
 // Fetch notifications specific to the logged-in user
-$query = "SELECT id, type, message, created_at, is_read 
+$query = "SELECT notification_id, type, message, created_at, is_read 
           FROM notifications 
           WHERE user_id = ? 
           ORDER BY created_at DESC";
@@ -78,7 +78,7 @@ if (!isset($_SESSION['csrf_token'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCGS Inventory | Notifications</title>
-    <link rel="stylesheet" href="../css/admind.css">
+    <link rel="stylesheet" href="../css/notification.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Add loading animation CSS -->
     <style>
