@@ -26,6 +26,18 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+document.addEventListener("DOMContentLoaded", function () {
+    // Select All Functionality
+    const selectAllCheckbox = document.querySelector(".select-all");
+    const itemCheckboxes = document.querySelectorAll(".select-checkbox");
+
+    window.toggleSelectAll = function (checkbox) {
+        itemCheckboxes.forEach(itemCheckbox => {
+            itemCheckbox.checked = checkbox.checked;
+        });
+    };
+});
+
 // Profile Dropdown
 document.addEventListener("DOMContentLoaded", function () {
     const userIcon = document.getElementById("userIcon");
