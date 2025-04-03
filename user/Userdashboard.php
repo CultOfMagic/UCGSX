@@ -194,42 +194,38 @@ $notifications = getUserNotifications($conn, $userId);
             <li><a href="UserTransaction.php"><img src="../assets/img/time-management.png" alt="Reports Icon" class="sidebar-icon">Transaction Records</a></li>
         </ul>
     </aside>
-    <div class="main-content">
-        <!-- Dashboard Overview -->
-        <div class="dashboard-overview">
-            <div class="stats-card">
-                <h3>Pending Requests</h3>
-                <p><?= htmlspecialchars(getPendingRequestsCount($conn, $userId)) ?></p>
-            </div>
-            <div class="stats-card">
-                <h3>Borrowed Items</h3>
-                <p><?= htmlspecialchars(getBorrowedItemsCount($conn, $userId)) ?></p>
-            </div>
-            <div class="stats-card">
-                <h3>Recent Transactions</h3>
-                <p><?= htmlspecialchars(getRecentTransactionsCount($conn, $userId)) ?></p>
-            </div>
-            <div class="stats-card">
-                <h3>Total Items</h3>
-                <p><?= htmlspecialchars($totalItems) ?></p>
-            </div>
+    <main class="main-content">
+    <h4 class="overview-title">OVERVIEW</h4>
+    
+    <div class="dashboard-overview">
+        <div class="card gradient-yellow">
+            <i class="fa-solid fa-clock"></i>
+            <h2>Pending Requests</h2>
+            <p><?= htmlspecialchars(getPendingRequestsCount($conn, $userId)) ?></p>
+            <canvas class="chart-container"></canvas>
         </div>
-
-        <!-- Notifications Section -->
-        <div class="notifications-section">
-            <h2>Recent Notifications</h2>
-            <ul class="notifications-list">
-                <?php foreach ($notifications as $notification): ?>
-                    <li>
-                        <p><?= htmlspecialchars($notification['message']) ?></p>
-                        <small><?= htmlspecialchars($notification['created_at']) ?></small>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
+        <div class="card gradient-green">
+            <i class="fa-solid fa-box-open"></i>
+            <h2>Borrowed Items</h2>
+            <p><?= htmlspecialchars(getBorrowedItemsCount($conn, $userId)) ?></p>
+            <canvas class="chart-container"></canvas>
         </div>
+        <div class="card gradient-purple">
+            <i class="fa-solid fa-exchange-alt"></i>
+            <h2>Recent Transactions</h2>
+            <p><?= htmlspecialchars(getRecentTransactionsCount($conn, $userId)) ?></p>
+            <canvas class="chart-container"></canvas>
+        </div>
+        <div class="card gradient-orange">
+            <i class="fa-solid fa-cubes"></i>
+            <h2>Total Items</h2>
+            <p><?= htmlspecialchars($totalItems) ?></p>
+            <canvas class="chart-container"></canvas>
+        </div>
+    </div>
 
-        <!-- Tables Section -->
-        <div class="tables-section">
+    <div class="tables-section">
+        <div class="table-container">
             <h2>Pending Requests</h2>
             <table class="data-table">
                 <thead>
@@ -258,7 +254,9 @@ $notifications = getUserNotifications($conn, $userId);
                     ?>
                 </tbody>
             </table>
-
+        </div>
+        
+        <div class="table-container">
             <h2>Borrowed Items</h2>
             <table class="data-table">
                 <thead>
@@ -272,7 +270,6 @@ $notifications = getUserNotifications($conn, $userId);
                 <tbody>
                     <?php
                     $stmt = $conn->prepare("SELECT borrow_id AS item_id, item_id AS item_name, borrow_date, actual_return_date FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
-                    // Replace 'item_id AS item_name' with the correct column name for the item name if necessary
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
@@ -281,13 +278,16 @@ $notifications = getUserNotifications($conn, $userId);
                                 <td>" . htmlspecialchars($row['item_id']) . "</td>
                                 <td>" . htmlspecialchars($row['item_name']) . "</td>
                                 <td>" . htmlspecialchars($row['borrow_date']) . "</td>
-                                <td>" . htmlspecialchars($row['actual_return_date']) . "</td>";
+                                <td>" . htmlspecialchars($row['actual_return_date']) . "</td>
+                              </tr>";
                     }
                     $stmt->close();
                     ?>
                 </tbody>
             </table>
-
+        </div>
+        
+        <div class="table-container">
             <h2>Recent Transactions</h2>
             <table class="data-table">
                 <thead>
@@ -307,7 +307,8 @@ $notifications = getUserNotifications($conn, $userId);
                         echo "<tr>
                                 <td>" . htmlspecialchars($row['transaction_id']) . "</td>
                                 <td>" . htmlspecialchars($row['details']) . "</td>
-                                <td>" . htmlspecialchars($row['created_at']) . "</td>";
+                                <td>" . htmlspecialchars($row['created_at']) . "</td>
+                              </tr>";
                     }
                     $stmt->close();
                     ?>
@@ -315,6 +316,7 @@ $notifications = getUserNotifications($conn, $userId);
             </table>
         </div>
     </div>
+</main>
     <script src="../js/usersdash.js"></script>
     <script>
         // Sidebar dropdown functionality
