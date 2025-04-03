@@ -1,5 +1,5 @@
 <?php
-include '../config/db_connection.php';
+include 'db_connection.php';
 session_start();
 
 // Verify admin session
@@ -40,6 +40,7 @@ if (!$result) {
 }
 
 // Handle report download requests
+// Handle report download requests
 if (isset($_GET['download'])) {
     $downloadType = $_GET['download'];
     $selectedItems = isset($_POST['selectedItems']) ? json_decode($_POST['selectedItems'], true) : [];
@@ -47,9 +48,11 @@ if (isset($_GET['download'])) {
     if (in_array($downloadType, ['pdf', 'xlsx'])) {
         $data = [];
         if (!empty($selectedItems)) {
+            // Fetch only the selected items from database
             $placeholders = implode(',', array_fill(0, count($selectedItems), '?'));
             $stmt = $conn->prepare("SELECT * FROM items WHERE item_no IN ($placeholders)");
-            $stmt->bind_param(str_repeat('i', count($selectedItems)), ...$selectedItems);
+            $types = str_repeat('s', count($selectedItems)); // 's' for string parameters
+            $stmt->bind_param($types, ...$selectedItems);
             $stmt->execute();
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc()) {
@@ -57,6 +60,7 @@ if (isset($_GET['download'])) {
             }
             $stmt->close();
         } else {
+            // If nothing selected, fetch all items
             while ($row = $result->fetch_assoc()) {
                 $data[] = $row;
             }
@@ -67,55 +71,118 @@ if (isset($_GET['download'])) {
             exit();
         }
 
-        if ($downloadType === 'pdf') {
-            $tcpdfPath = '../libs/tcpdf/tcpdf.php';
-            if (!file_exists($tcpdfPath)) {
-                echo "<p style='color: red; text-align: center;'>Error: TCPDF library is missing. Please download it from <a href='https://tcpdf.org/'>https://tcpdf.org/</a> and place it in the '../libs/tcpdf/' directory.</p>";
-                exit();
-            }
-            require_once $tcpdfPath;
-            $pdf = new TCPDF();
-            $pdf->AddPage();
-            $html = '<h1>Reports</h1><table border="1" cellpadding="5">';
-            $html .= '<tr><th>Item No</th><th>Item Name</th><th>Quantity</th><th>Status</th></tr>';
+        if ($downloadType === 'xlsx') {
+            // Generate CSV (as simple XLSX alternative)
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="inventory_report_'.date('Y-m-d').'.csv"');
+            
+            $output = fopen('php://output', 'w');
+            
+            // Header row
+            fputcsv($output, [
+                'Item No', 'Last Updated', 'Model No', 'Item Name', 
+                'Description', 'Item Category', 'Item Location', 
+                'Expiration', 'Brand', 'Supplier', 'Price Per Item',
+                'Quantity', 'Unit', 'Status', 'Reorder Point'
+            ]);
+            
+            // Data rows
             foreach ($data as $row) {
-                $html .= '<tr>';
-                $html .= '<td>' . htmlspecialchars($row['item_no']) . '</td>';
-                $html .= '<td>' . htmlspecialchars($row['item_name']) . '</td>';
-                $html .= '<td>' . htmlspecialchars($row['quantity']) . '</td>';
-                $html .= '<td>' . htmlspecialchars($row['status']) . '</td>';
-                $html .= '</tr>';
+                fputcsv($output, [
+                    $row['item_no'] ?? '',
+                    $row['last_updated'] ?? '',
+                    $row['model_no'] ?? '',
+                    $row['item_name'] ?? '',
+                    $row['description'] ?? '',
+                    $row['item_category'] ?? '',
+                    $row['item_location'] ?? '',
+                    $row['expiration'] ?? '',
+                    $row['brand'] ?? '',
+                    $row['supplier'] ?? '',
+                    $row['price_per_item'] ?? '',
+                    $row['quantity'] ?? '',
+                    $row['unit'] ?? '',
+                    $row['status'] ?? '',
+                    $row['reorder_point'] ?? ''
+                ]);
             }
-            $html .= '</table>';
-            $pdf->writeHTML($html);
-            $pdf->Output('reports.pdf', 'D');
-        } elseif ($downloadType === 'xlsx') {
-            require_once '../libs/phpspreadsheet/vendor/autoload.php';
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-            $sheet->setCellValue('A1', 'Item No')
-                  ->setCellValue('B1', 'Item Name')
-                  ->setCellValue('C1', 'Quantity')
-                  ->setCellValue('D1', 'Status');
-            $rowIndex = 2;
-            foreach ($data as $row) {
-                $sheet->setCellValue("A$rowIndex", $row['item_no'])
-                      ->setCellValue("B$rowIndex", $row['item_name'])
-                      ->setCellValue("C$rowIndex", $row['quantity'])
-                      ->setCellValue("D$rowIndex", $row['status']);
-                $rowIndex++;
-            }
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            header('Content-Disposition: attachment; filename="reports.xlsx"');
-            $writer->save('php://output');
+            
+            fclose($output);
+            exit;
         }
-        exit();
-    } else {
-        echo "<p style='color: red; text-align: center;'>Invalid download type.</p>";
-        exit();
+
+        if ($downloadType === 'pdf') {
+            // Generate HTML that browsers can print as PDF
+            $html = '<!DOCTYPE html>
+            <html>
+            <head>
+                <title>Inventory Report</title>
+                <style>
+                    body { font-family: Arial; margin: 20px; }
+                    h1 { color: #333; text-align: center; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background-color: #f2f2f2; text-align: left; }
+                    th, td { border: 1px solid #ddd; padding: 8px; }
+                    .header { display: flex; justify-content: space-between; }
+                    @media print {
+                        @page { size: A4 landscape; margin: 1cm; }
+                        body { font-size: 10pt; }
+                        table { page-break-inside: auto; }
+                        tr { page-break-inside: avoid; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>UCGS Inventory Report</h1>
+                    <div>Generated: '.date('Y-m-d H:i:s').'</div>
+                </div>
+                <table>
+                    <tr>
+                        <th>Item No</th>
+                        <th>Item Name</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Price</th>
+                        <th>Supplier</th>
+                    </tr>';
+            
+            foreach ($data as $row) {
+                $html .= '<tr>
+                        <td>'.htmlspecialchars($row['item_no']).'</td>
+                        <td>'.htmlspecialchars($row['item_name']).'</td>
+                        <td>'.htmlspecialchars($row['item_category']).'</td>
+                        <td>'.htmlspecialchars($row['quantity']).' '.htmlspecialchars($row['unit']).'</td>
+                        <td>'.htmlspecialchars($row['item_location']).'</td>
+                        <td>'.htmlspecialchars($row['status']).'</td>
+                        <td>'.htmlspecialchars($row['price_per_item']).'</td>
+                        <td>'.htmlspecialchars($row['supplier']).'</td>
+                    </tr>';
+            }
+            
+            $html .= '</table>
+            </body>
+            </html>';
+        
+            // Output with instructions
+            header('Content-Type: text/html');
+            echo $html;
+            echo '<script>
+                setTimeout(function(){
+                    window.print();
+                    setTimeout(function(){
+                        window.close();
+                    }, 1000);
+                }, 500);
+            </script>';
+            exit;
+        }
     }
+
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -254,28 +321,29 @@ if (isset($_GET['download'])) {
     </form>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const downloadLinks = document.querySelectorAll(".download-pdf, .download-xlsx");
-            const selectedItemsInput = document.getElementById("selectedItems");
+document.addEventListener("DOMContentLoaded", function () {
+    const downloadLinks = document.querySelectorAll(".download-pdf, .download-xlsx");
+    const selectedItemsInput = document.getElementById("selectedItems");
 
-            downloadLinks.forEach(link => {
-                link.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    const selectedCheckboxes = document.querySelectorAll(".select-checkbox:checked");
-                    const selectedValues = Array.from(selectedCheckboxes).map(cb => cb.value);
+    downloadLinks.forEach(link => {
+        link.addEventListener("click", function (event) {
+            event.preventDefault();
+            const selectedCheckboxes = document.querySelectorAll(".select-checkbox:checked");
+            const selectedValues = Array.from(selectedCheckboxes).map(cb => cb.value);
 
-                    if (selectedValues.length === 0) {
-                        alert("Please select at least one item to download.");
-                        return;
-                    }
+            if (selectedValues.length === 0) {
+                alert("Please select at least one item to download.");
+                return;
+            }
 
-                    selectedItemsInput.value = JSON.stringify(selectedValues);
-                    const form = document.getElementById("downloadForm");
-                    form.action = this.href;
-                    form.submit();
-                });
-            });
+            // Create a simple array of selected item_no values
+            selectedItemsInput.value = JSON.stringify(selectedValues);
+            const form = document.getElementById("downloadForm");
+            form.action = this.href;
+            form.submit();
         });
+    });
+});
     </script>
 
     <script src="../js/report.js"></script>
