@@ -22,9 +22,25 @@ function getCurrentUser($conn) {
     return $user ?: [];
 }
 
+function getItemCategories($conn) {
+    $stmt = $conn->prepare("SELECT DISTINCT item_category FROM items WHERE quantity > 0 ORDER BY item_category");
+    if (!$stmt) {
+        die('Database error: ' . $conn->error);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $categories = [];
+    while ($row = $result->fetch_assoc()) {
+        $categories[] = $row['item_category'];
+    }
+    $stmt->close();
+    return $categories;
+}
+
 $currentUser = getCurrentUser($conn);
 $accountName = htmlspecialchars($currentUser['username']);
 $accountEmail = htmlspecialchars($currentUser['email'] ?? '');
+$categories = getItemCategories($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $itemCategory = htmlspecialchars($_POST['item_category'] ?? '');
@@ -125,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         die('Failed to submit the request: ' . $stmt->error);
     }
-} 
+}
 
 // Fetch items based on category for dynamic population
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
@@ -185,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
             <div class="right-side">
                 <div class="user">
                     <img src="../assets/img/users.png" alt="User profile" class="icon" id="userIcon">
-                    <span class="user-text"><?php echo htmlspecialchars($accountName); ?></span> <!-- Display logged-in user's username -->
+                    <span class="user-text"><?php echo htmlspecialchars($accountName); ?></span>
                     <div class="user-dropdown" id="userDropdown">
                         <a href="userprofile.php"><img src="../assets/img/updateuser.png" alt="Profile" class="dropdown-icon"> Profile</a>
                         <a href="usernotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
@@ -226,18 +242,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
                         <label for="item-category">Item Category:</label>
                         <select id="item-category" name="item_category" required>
                             <option value="" disabled selected>Select a Category</option>
-                            <option value="electronics">Electronics</option>
-                            <option value="furniture">Furniture</option>
-                            <option value="stationery">Stationery</option>
-                            <option value="accesories">Accessories</option>
-                            <option value="consumables">Consumables</option>
+                            <?php foreach ($categories as $category): ?>
+                                <option value="<?php echo htmlspecialchars($category); ?>">
+                                    <?php echo htmlspecialchars(ucfirst($category)); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="item-id">Select Item:</label>
                         <select id="item-id" name="item_id" required>
                             <option value="" disabled selected>Select an Item</option>
-                            <!-- Items will be dynamically populated based on category -->
                         </select>
                     </div>
                 </div>
@@ -262,12 +277,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['item_category'])) {
 
                 <div class="form-group">
                     <label for="purpose">Purpose:</label>
-                    <input id="purpose" name="purpose" rows="3" required placeholder="Enter the purpose of borrowing"></textarea>
+                    <textarea id="purpose" name="purpose" rows="3" required placeholder="Enter the purpose of borrowing"></textarea>
                 </div>
 
                 <div class="form-group">
                     <label for="notes">Additional Notes:</label>
-                    <input id="notes" name="notes" rows="2" placeholder="Enter any additional notes (optional)"></textarea>
+                    <textarea id="notes" name="notes" rows="2" placeholder="Enter any additional notes (optional)"></textarea>
                 </div>
 
                 <div class="form-buttons">
