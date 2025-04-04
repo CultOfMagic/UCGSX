@@ -136,8 +136,8 @@ document.addEventListener("DOMContentLoaded", function () {
         button.addEventListener("click", function () {
             currentRow = this.closest("tr"); // Get the current row
             if (currentRow) {
-                currentRow.cells[6].innerText = "Approved";
-                currentRow.cells[6].style.color = "green"; // Change color for visibility
+                currentRow.cells[8].innerText = "Approved";
+                currentRow.cells[8].style.color = "green"; // Change color for visibility
             }
         });
     });
@@ -169,8 +169,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Update status in the table
         if (currentRow) {
-            currentRow.cells[6].innerText = "Rejected";
-            currentRow.cells[6].style.color = "red"; // Change color for visibility
+            currentRow.cells[8].innerText = "Rejected";
+            currentRow.cells[8].style.color = "red"; // Change color for visibility
         }
 
         // Close modal

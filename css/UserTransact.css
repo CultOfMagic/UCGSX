@@ -1053,6 +1053,28 @@ table th {
     transform: scale(1.05);
 }
 
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    gap: 10px;
+}
+
+.pagination button {
+    padding: 8px 12px;
+    border: none;
+    background-color: #006400;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.pagination button:disabled {
+    background-color: gray;
+    cursor: not-allowed;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .admin-profile-form {

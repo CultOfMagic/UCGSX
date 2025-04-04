@@ -215,16 +215,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <aside class="sidebar">
     <ul>
         <li><a href="AdminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
-        <li class="dropdown">
-            <a href="#" class="dropdown-btn">
-                <img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">
-                <span class="text">Items</span> 
-                <i class="fa-solid fa-chevron-down arrow-icon"></i>
-            </a>
-            <ul class="dropdown-content">
-                <li><a href="ItemRecords.php"> Item Records</a></li>
-            </ul>
-        </li>
+
+        <li><a href="ItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">Item Records</i></a></li>
+
+        <!-- Request Record with Dropdown -->
         <li class="dropdown">
             <a href="#" class="dropdown-btn">
                 <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
@@ -232,11 +226,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <i class="fa-solid fa-chevron-down arrow-icon"></i>
             </a>
             <ul class="dropdown-content">
-                <li><a href="ItemRequest.php"> Item Request by User</a></li>
-                <li><a href="ItemBorrowed.php"> Item Borrowed</a></li>
-                <li><a href="ItemReturned.php"> Item Returned</a></li>
+                <li><a href="ItemRequest.php"><i class=""></i> Item Request by User</a></li>
+                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrow</a></li>
+                <li><a href="ItemReturned.php"><i class=""></i> Item Returned</a></li>
             </ul>
         </li>
+
         <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>
         <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
     </ul>

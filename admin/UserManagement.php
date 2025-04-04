@@ -248,18 +248,7 @@ $accountRole = $loggedInUser['role'];
     <ul>
         <li><a href="AdminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
 
-        <!-- Items with dropdown -->
-        <li class="dropdown">
-            <a href="#" class="dropdown-btn">
-                <img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">
-                <span class="text">Items</span> 
-                <i class="fa-solid fa-chevron-down arrow-icon"></i>
-            </a>
-            <ul class="dropdown-content">
-                <li><a href="ItemRecords.php"><i class=""></i> Item Records</a></li>
-                <!-- Removed Inventory Summary -->
-            </ul>
-        </li>
+        <li><a href="ItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">Item Records</i></a></li>
 
         <!-- Request Record with Dropdown -->
         <li class="dropdown">
@@ -270,7 +259,7 @@ $accountRole = $loggedInUser['role'];
             </a>
             <ul class="dropdown-content">
                 <li><a href="ItemRequest.php"><i class=""></i> Item Request by User</a></li>
-                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrowed</a></li>
+                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrow</a></li>
                 <li><a href="ItemReturned.php"><i class=""></i> Item Returned</a></li>
             </ul>
         </li>

@@ -1,5 +1,5 @@
 <?php
-include 'db_connection.php';
+include '../config/db_connection.php';
 session_start();
 
 // Verify User session
@@ -44,6 +44,12 @@ foreach ($requiredTables as $table) {
     }
 }
 
+// Pagination setup
+$rowsPerPage = 10;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = max($page, 1); // Ensure page is at least 1
+$offset = ($page - 1) * $rowsPerPage;
+
 // Fetch borrow requests for the logged-in user
 $borrowRequestsQuery = "
     SELECT 
@@ -58,9 +64,10 @@ $borrowRequestsQuery = "
     FROM borrow_requests 
     JOIN items ON borrow_requests.item_id = items.item_id 
     WHERE borrow_requests.user_id = ?
+    LIMIT ? OFFSET ?
 ";
 $borrowRequestsStmt = $conn->prepare($borrowRequestsQuery);
-$borrowRequestsStmt->bind_param("i", $currentUserId);
+$borrowRequestsStmt->bind_param("iii", $currentUserId, $rowsPerPage, $offset);
 $borrowRequestsStmt->execute();
 $borrowRequestsResult = $borrowRequestsStmt->get_result();
 $borrowRequestsStmt->close();
@@ -74,9 +81,10 @@ $newItemRequestsQuery = "
         new_item_requests.status 
     FROM new_item_requests 
     WHERE new_item_requests.user_id = ?
+    LIMIT ? OFFSET ?
 ";
 $newItemRequestsStmt = $conn->prepare($newItemRequestsQuery);
-$newItemRequestsStmt->bind_param("i", $currentUserId);
+$newItemRequestsStmt->bind_param("iii", $currentUserId, $rowsPerPage, $offset);
 $newItemRequestsStmt->execute();
 $newItemRequestsResult = $newItemRequestsStmt->get_result();
 $newItemRequestsStmt->close();
@@ -92,13 +100,14 @@ $returnedRequestsQuery = "
     JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.borrow_id -- Replace 'primary_key' with the correct column name
     JOIN items ON borrow_requests.item_id = items.item_id 
     WHERE borrow_requests.user_id = ?
+    LIMIT ? OFFSET ?
 ";
 $returnedRequestsStmt = $conn->prepare($returnedRequestsQuery);
 if ($returnedRequestsStmt === false) {
     die("Error preparing returned requests statement: " . $conn->error);
 }
 
-if (!$returnedRequestsStmt->bind_param("i", $currentUserId)) {
+if (!$returnedRequestsStmt->bind_param("iii", $currentUserId, $rowsPerPage, $offset)) {
     die("Error binding parameters: " . $returnedRequestsStmt->error);
 }
 
@@ -108,6 +117,23 @@ if (!$returnedRequestsStmt->execute()) {
 
 $returnedRequestsResult = $returnedRequestsStmt->get_result();
 $returnedRequestsStmt->close();
+
+// Calculate total pages for pagination
+$totalRowsQuery = "
+    SELECT 
+        (SELECT COUNT(*) FROM borrow_requests WHERE user_id = ?) +
+        (SELECT COUNT(*) FROM new_item_requests WHERE user_id = ?) +
+        (SELECT COUNT(*) FROM return_requests 
+         JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.borrow_id 
+         WHERE borrow_requests.user_id = ?) AS total_rows
+";
+$totalRowsStmt = $conn->prepare($totalRowsQuery);
+$totalRowsStmt->bind_param("iii", $currentUserId, $currentUserId, $currentUserId);
+$totalRowsStmt->execute();
+$totalRowsResult = $totalRowsStmt->get_result();
+$totalRows = $totalRowsResult->fetch_assoc()['total_rows'];
+$totalPages = ceil($totalRows / $rowsPerPage);
+$totalRowsStmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -164,7 +190,7 @@ $returnedRequestsStmt->close();
 </aside>
 
 <main class="main-content">
-    <h1>User Requests</h1>
+    <h1>User Transactions</h1>
     <table class="transaction-table">
         <thead>
             <tr>
@@ -211,10 +237,23 @@ $returnedRequestsStmt->close();
             <?php endwhile; ?>
         </tbody>
     </table>
-</main>
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <button onclick="changePage(<?php echo max(1, $page - 1); ?>)" <?php echo ($page <= 1) ? 'disabled' : ''; ?>>Previous</button>
+        <span>Page <?php echo $page; ?> of <?php echo $totalPages; ?></span>
+        <button onclick="changePage(<?php echo min($totalPages, $page + 1); ?>)" <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>>Next</button>
+    </div>
+</div>
+
 
 <script src="../js/UserTransact.js"></script>
 <script>
+
+    function changePage(page) {
+        window.location.href = `UserTransaction.php?page=${page}`;
+    }
+
     // Sidebar dropdown functionality
     document.querySelectorAll('.dropdown-btn').forEach(button => {
         button.addEventListener('click', () => {
