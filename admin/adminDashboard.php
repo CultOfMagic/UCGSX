@@ -39,8 +39,6 @@ try {
     die("Error: Unable to fetch item count. Please ensure the 'items' table exists in the database.");
 }
 
-
-
 // Initialize variables with default values
 $approvedRequestsCount = 0;
 $pendingRequestsCount = 0;
@@ -63,23 +61,18 @@ if ($pendingQuery === false) {
     $pendingQuery->free(); // Free the result set
 }
 
-// Prepare data for the chart
-$chartData = [
-    'users' => $userCount,
-    'items' => $itemCount,
-    'approvedRequests' => $approvedRequestsCount,
-    'pendingRequests' => $pendingRequestsCount
-];
-
-
-
-// Prepare data for the main chart
-$chartData = [
-    'users' => $userCount,
-    'items' => $itemCount,
-    'approvedRequests' => $approvedRequestsCount,
-    'pendingRequests' => $pendingRequestsCount
-];
+// Fetch 5 most recently updated items
+$recentItems = [];
+$recentItemsQuery = $conn->query("SELECT item_name, description, model_no, expiration, brand, quantity 
+                                 FROM items 
+                                 ORDER BY last_updated DESC 
+                                 LIMIT 5");
+if ($recentItemsQuery) {
+    while ($row = $recentItemsQuery->fetch_assoc()) {
+        $recentItems[] = $row;
+    }
+    $recentItemsQuery->free();
+}
 ?>
 
 <!DOCTYPE html>
@@ -90,7 +83,6 @@ $chartData = [
     <title>UCGS Inventory | Dashboard</title>
     <link rel="stylesheet" href="../css/admind.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <header class="header">
@@ -144,58 +136,55 @@ $chartData = [
             <i class="fa-solid fa-user"></i>
                 <h2>Users</h2>
                 <p><?php echo htmlspecialchars($userCount); ?></p>
-                <canvas id="chart1" class="chart-container"></canvas>
             </div>
         <div class="card gradient-orange">
             <i class="fa-solid fa-check-circle"></i>
             <h2>Approved Requests</h2>
             <p><?php echo htmlspecialchars($approvedRequestsCount); ?></p>
-            <canvas id="chart2" class="chart-container"></canvas>
         </div>
         <div class="card gradient-green">
             <i class="fa-solid fa-clock"></i>
             <h2>Pending Requests</h2>
             <p><?php echo htmlspecialchars($pendingRequestsCount); ?></p>
-            <canvas id="chart3" class="chart-container"></canvas>
         </div>
         <div class="card gradient-purple">
             <i class="fa-solid fa-list"></i>
             <h2>Total Items</h2>
             <p><?php echo htmlspecialchars($itemCount); ?></p>
-            <canvas id="chart4" class="chart-container"></canvas>
         </div>
     </div>
-    
-    <!-- Moved main chart container here -->
-    <div class="main-chart-container">
-        <canvas id="mainChart"></canvas>
-    </div>
-    
         
-        <div class="tables-section">
-            <div class="table-container">
-                <h2>Recent Items</h2>
-                <table>
-                    <tr>
-                        <th>Item Name</th>
-                        <th>Description</th>
-                        <th>Model No.</th>
-                        <th>Expiration</th>
-                        <th>Brand</th>
-                        <th>Quantity</th>
-                        <th>Actions</th>
-                    </tr>
-                    <tr>
-                        <td>Printer Ink</td>
-                        <td>Black Ink Cartridge</td>
-                        <td>HP123</td>
-                        <td>N/A</td>
-                        <td>HP</td>
-                        <td>20</td>
-                        <td><button class="btn view" onclick="openModal('viewModal')">View</button></td>
-                    </tr>
-                </table>
-            </div>
+    <div class="tables-section">
+        <div class="table-container">
+            <h2>Recent Items</h2>
+            <table>
+                <tr>
+                    <th>Item Name</th>
+                    <th>Description</th>
+                    <th>Model No.</th>
+                    <th>Expiration</th>
+                    <th>Brand</th>
+                    <th>Quantity</th>
+                    <th>Actions</th>
+                </tr>
+                <?php foreach ($recentItems as $item): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($item['item_name']); ?></td>
+                    <td><?php echo htmlspecialchars($item['description']); ?></td>
+                    <td><?php echo htmlspecialchars($item['model_no']); ?></td>
+                    <td><?php echo $item['expiration'] ? htmlspecialchars($item['expiration']) : 'N/A'; ?></td>
+                    <td><?php echo htmlspecialchars($item['brand']); ?></td>
+                    <td><?php echo htmlspecialchars($item['quantity']); ?></td>
+                    <td><button class="btn view" onclick="openModal('viewModal')">View</button></td>
+                </tr>
+                <?php endforeach; ?>
+                <?php if (empty($recentItems)): ?>
+                <tr>
+                    <td colspan="7">No recent items found</td>
+                </tr>
+                <?php endif; ?>
+            </table>
+        </div>
             
             <div class="table-container">
                 <h2>Pending Requests</h2>
@@ -255,48 +244,5 @@ $chartData = [
     </div>
 
     <script src="../js/admindash.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            const chartData = <?php echo json_encode($chartData); ?>;
-
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Users', 'Items', 'Approved Requests', 'Pending Requests'],
-                    datasets: [{
-                        label: 'Counts',
-                        data: [chartData.users, chartData.items, chartData.approvedRequests, chartData.pendingRequests],
-                        backgroundColor: [
-                            'rgba(255, 206, 86, 0.6)', // Yellow
-                            'rgba(153, 102, 255, 0.6)', // Purple
-                            'rgba(255, 159, 64, 0.6)', // Orange
-                            'rgba(75, 192, 192, 0.6)'  // Green
-                        ],
-                        borderColor: [
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(255, 159, 64, 1)',
-                            'rgba(75, 192, 192, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        });
-    </script>
 </body>
 </html>
