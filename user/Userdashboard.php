@@ -284,7 +284,8 @@ $notifications = getUserNotifications($conn, $userId);
                                JOIN items ON borrow_requests.item_id = items.item_id 
                                WHERE borrow_requests.user_id = ? AND return_requests.status = 'Pending')
                               
-                              ORDER BY request_date DESC";
+                              ORDER BY request_date DESC
+                              LIMIT 10";
                     
                     $stmt = $conn->prepare($query);
                     $stmt->bind_param("iii", $userId, $userId, $userId);
@@ -326,7 +327,8 @@ $notifications = getUserNotifications($conn, $userId);
                                            JOIN borrow_requests br ON bi.request_id = br.borrow_id
                                            JOIN items i ON bi.item_id = i.item_id
                                            WHERE bi.user_id = ? 
-                                           AND bi.status = 'Borrowed'");
+                                           AND bi.status = 'Borrowed'
+                                           LIMIT 10");
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
