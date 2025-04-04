@@ -201,34 +201,6 @@ if (!isset($_SESSION['csrf_token'])) {
                 </div>
             <?php endif; ?>
         </div>
-
-        <div class="user-requests">
-            <h2>Your Requests</h2>
-            <?php if(count($userRequests) > 0): ?>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Request ID</th>
-                            <th>Item Name</th>
-                            <th>Status</th>
-                            <th>Admin Reason</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach($userRequests as $request): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($request['request_id']) ?></td>
-                                <td><?= htmlspecialchars($request['item_name']) ?></td>
-                                <td><?= htmlspecialchars($request['status']) ?></td>
-                                <td><?= htmlspecialchars($request['admin_reason'] ?? 'N/A') ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php else: ?>
-                <p>No requests found.</p>
-            <?php endif; ?>
-        </div>
     </div>
 
     <!-- Add CSRF token meta tag -->

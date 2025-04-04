@@ -272,7 +272,7 @@ $accountRole = $loggedInUser['role'];
 <div class="main-content">
         <h2>User Management</h2>
 
-        <div class="filter-container">
+    <div class="filter-container">
     <div class="filter-inputs">
         <input type="text" id="search-box" placeholder="Search...">
         <label for="start-date">Date Range:</label>

@@ -60,21 +60,16 @@ if ($page > $totalPages) {
 // Calculate offset for pagination
 $offset = ($page - 1) * $itemsPerPage;
 
-// Fetch items for the current page
-$itemsQuery = "SELECT item_name, description, quantity, unit, status, created_at,last_updated, model_no, item_category, item_location 
+// Fetch ALL items without pagination
+$itemsQuery = "SELECT item_name, description, quantity, unit, status, created_at, last_updated, model_no, item_category, item_location 
                FROM items 
-               WHERE deleted_at IS NULL 
-               LIMIT ?, ?";
-$stmt = $conn->prepare($itemsQuery);
-if (!$stmt) {
+               WHERE deleted_at IS NULL";
+$result = $conn->query($itemsQuery);
+if (!$result) {
     error_log("Database error: " . $conn->error);
     die("An error occurred. Please try again later.");
 }
-$stmt->bind_param("ii", $offset, $itemsPerPage);
-$stmt->execute();
-$result = $stmt->get_result();
 $items = $result->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -128,62 +123,43 @@ $stmt->close();
     </aside>
 
     <div class="main-content">
-    <h2>Item Records</h2>
-    <div class="search-form">
-        <input type="text" id="search-input" placeholder="Search..." oninput="searchTable()">
-    </div>
+        <h2>Item Records</h2>
+        <div class="search-form">
+            <input type="text" id="search-input" placeholder="Search...">
+            <button class="reset-btn" onclick="resetSearch()">Reset</button>
+        </div>
 
-    <table class="item-table">
-        <thead>
-            <tr>
-                <th>Item Name</th>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Unit</th>
-                <th>Status</th>
-                <th>Last Updated</th>
-                <th>Created At</th>
-                <th>Model No</th>
-                <th>Item Category</th>
-                <th>Item Location</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if (!empty($items)): ?>
-                <?php foreach ($items as $row): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($row['item_name']); ?></td>
-                        <td><?= htmlspecialchars($row['description']); ?></td>
-                        <td><?= htmlspecialchars($row['quantity']); ?></td>
-                        <td><?= htmlspecialchars($row['unit']); ?></td>
-                        <td><?= htmlspecialchars($row['status']); ?></td>
-                        <td><?= htmlspecialchars($row['last_updated']); ?></td>
-                        <td><?= htmlspecialchars($row['created_at']); ?></td>
-                        <td><?= htmlspecialchars($row['model_no']); ?></td>
-                        <td><?= htmlspecialchars($row['item_category']); ?></td>
-                        <td><?= htmlspecialchars($row['item_location']); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            <?php else: ?>
+        <table class="item-table">
+            <thead>
                 <tr>
-                    <td colspan="9" style="text-align: center;">No records found.</td>
+                    <th>Item Name</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Created At</th>
+                    <th>Model No</th>
+                    <th>Item Category</th>
+                    <th>Item Location</th>
                 </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+            </thead>
+            <tbody id="item-table-body">
+                <!-- This will be populated by JavaScript -->
+            </tbody>
+        </table>
 
     <!-- Pagination -->
     <div class="pagination">
-        <button onclick="changePage(<?php echo max(1, $page - 1); ?>)" <?php echo ($page <= 1) ? 'disabled' : ''; ?>>Previous</button>
-        <span>Page <?php echo $page; ?> of <?php echo $totalPages; ?></span>
-        <button onclick="changePage(<?php echo min($totalPages, $page + 1); ?>)" <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>>Next</button>
+            <button id="prev-btn" onclick="prevPage()">Previous</button>
+            <span id="page-number">Page 1 of 1</span>
+            <button id="next-btn" onclick="nextPage()">Next</button>
     </div>
 </div>
 
-<script>
-function changePage(page) {
-    window.location.href = `UserItemRecords.php?page=${page}`;
-}
-</script>
+    <script>
+        const itemsData = <?php echo json_encode($items); ?>;
+    </script>
+    <script src="../js/userecords.js"></script>
 </body>
 </html>
