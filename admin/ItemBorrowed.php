@@ -65,10 +65,37 @@ $query = "SELECT br.borrow_id AS request_id, u.username, i.item_name, i.item_cat
           JOIN users u ON br.user_id = u.user_id
           JOIN items i ON br.item_id = i.item_id
           WHERE br.status = 'Pending'";
+          
 $result = $conn->query($query);
+
 
 if (!$result) {
     die("Query failed: " . htmlspecialchars($conn->error)); // Debugging error message
+}
+
+// Handle POST request to approve borrow request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if (isset($input['request_id'], $input['status']) && strtolower($input['status']) === 'approved') {
+        $requestId = intval($input['request_id']); // Ensure request_id is an integer
+
+        $stmt = $conn->prepare("UPDATE borrow_requests SET status = 'Approved' WHERE borrow_id = ?");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'message' => 'Failed to prepare statement.']);
+            exit();
+        }
+
+        $stmt->bind_param("i", $requestId);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Request approved successfully.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to update request status.']);
+        }
+        $stmt->close();
+        exit();
+        
+    }
 }
 ?>
 
@@ -107,10 +134,17 @@ if (!$result) {
 <aside class="sidebar">
     <ul>
         <li><a href="AdminDashboard.php"><img src="../assets/img/dashboards.png" alt="Dashboard Icon" class="sidebar-icon"> Dashboard</a></li>
-
-        <li><a href="ItemRecords.php"><img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">Item Records</i></a></li>
-
-        <!-- Request Record with Dropdown -->
+        <li class="dropdown">
+            <a href="#" class="dropdown-btn">
+                <img src="../assets/img/list-items.png" alt="Items Icon" class="sidebar-icon">
+                <span class="text">Items</span> 
+                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+            </a>
+            <ul class="dropdown-content">
+                <li><a href="ItemRecords.php"> Item Records</a></li>
+                <li><a href="InventorySummary.php"> Inventory Summary</a></li>   
+            </ul>
+        </li>
         <li class="dropdown">
             <a href="#" class="dropdown-btn">
                 <img src="../assets/img/request-for-proposal.png" alt="Request Icon" class="sidebar-icon">
@@ -118,16 +152,16 @@ if (!$result) {
                 <i class="fa-solid fa-chevron-down arrow-icon"></i>
             </a>
             <ul class="dropdown-content">
-                <li><a href="ItemRequest.php"><i class=""></i> Item Request by User</a></li>
-                <li><a href="ItemBorrowed.php"><i class=""></i> Item Borrow</a></li>
-                <li><a href="ItemReturned.php"><i class=""></i> Item Returned</a></li>
+                <li><a href="ItemRequest.php"> Item Request by User</a></li>
+                <li><a href="ItemBorrowed.php"> Item Borrowed</a></li>
+                <li><a href="ItemReturned.php"> Item Returned</a></li>
             </ul>
         </li>
-
         <li><a href="Reports.php"><img src="../assets/img/reports.png" alt="Reports Icon" class="sidebar-icon"> Reports</a></li>
         <li><a href="UserManagement.php"><img src="../assets/img/user-management.png" alt="User Management Icon" class="sidebar-icon"> User Management</a></li>
     </ul>
 </aside>
+
 
 <div class="main-content">
     <h2>Item Borrowed</h2>
@@ -171,9 +205,18 @@ if (!$result) {
         <td><?php echo htmlspecialchars($row['status']); ?></td>
         <td><?php echo htmlspecialchars($row['request_date']); ?></td>
         <td>
-            <button class="approve-btn" data-request-id="<?php echo $row['request_id']; ?>">Approve</button>
-            <button class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
+            <form action="updateRequestStatusApprove.php" method="POST" class="approve-form">
+                <input type="text" name="request_id" value="<?php echo $row['request_id']; ?>" >
+                <button type="submit" class="approve-btn" data-request-id="<?php echo $row['request_id']; ?>">Approve</button>
+            </form>
+            <!-- <form action="updateRequestStatusReject.php" method="POST" class="approve-form">
+            <input type="text" name="status" value="Rejected" hidden>
+            <button type="submit" class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
+            </form> -->
+            <button type="submit" class="reject-btn" data-request-id="<?php echo $row['request_id']; ?>">Reject</button>
         </td>
+
+    
     </tr>
     <?php endwhile; ?>
 <?php else: ?>
@@ -208,5 +251,40 @@ if (!$result) {
     </div>
 </div>
     <script src="../js/Itmborrowed.js"></script>
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+    // const approveButtons = document.querySelectorAll('.approve-btn');
+    // const rejectButtons = document.querySelectorAll('.reject-btn');
+
+    // approveButtons.forEach(button => {
+    //     button.addEventListener('click', function () {
+    //         const requestId = this.getAttribute('data-request-id');
+
+    //         if (confirm('Are you sure you want to approve this request?')) {
+    //             fetch('updateRequestStatusApprove.php', {
+    //                 method: 'POST',
+    //                 headers: {
+    //                     'Content-Type': 'application/json'
+    //                 },
+    //                 body: JSON.stringify({ request_id: requestId }) 
+    //             })
+    //             .then(response => response.json())
+    //             .then(data => {
+    //                 if (data.success) {
+    //                     alert('Request approved successfully!');
+    //                     location.reload(); // Reload the page to reflect changes
+    //                 } else {
+    //                     alert('Error: ' + data.message);
+    //                 }   
+    //                 console.log(data);
+    //             })
+                
+    //         }
+    //     });
+    // });
+
+
+});
+</script>
 </body>
 </html>

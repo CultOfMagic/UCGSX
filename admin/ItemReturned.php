@@ -22,17 +22,16 @@ $accountName = htmlspecialchars($currentAdmin['username'] ?? 'User');
 $accountEmail = htmlspecialchars($currentAdmin['email'] ?? '');
 $accountRole = htmlspecialchars($currentAdmin['role'] ?? '');
 
-// Fetch items with status 'Approved' and a valid return date
-$query = "SELECT br.borrow_id, br.return_date, i.item_name, br.quantity, br.status, u.username
-          FROM borrow_requests br
-          JOIN items i ON br.item_id = i.item_id
-          JOIN users u ON br.user_id = u.user_id
-          WHERE br.status = 'Approved' AND br.return_date IS NOT NULL";
+// Fetch items from the return_request table
+$query = "SELECT rr.return_id, rr.return_date, i.item_name, rr.quantity, rr.item_condition, rr.notes, rr.status, rr.created_at, u.username
+          FROM return_requests rr
+          JOIN items i ON rr.item_id = i.item_id -- Replace 'item_id' with the correct column name
+          JOIN users u ON rr.user_id = u.user_id";
 
 $result = $conn->query($query);
 
 if (!$result) {
-    die("Error fetching borrow requests: " . htmlspecialchars($conn->error));
+    die("Error fetching return requests: " . htmlspecialchars($conn->error));
 }
 
 // Handle return request submission
@@ -149,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <th>Condition</th>
                         <th>Notes</th>
                         <th>Status</th>
-                        <th>Return Request Date</th>
+                        <th>Request Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>

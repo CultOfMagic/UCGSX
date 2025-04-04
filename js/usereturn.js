@@ -84,3 +84,27 @@ document.addEventListener("DOMContentLoaded", function () {
         })
         .catch(error => console.error('Error fetching transaction history:', error));
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    fetchApprovedRequests();
+});
+
+function fetchApprovedRequests() {
+    fetch('UserItemReturned.php?action=fetch_approved_requests')
+        .then(response => response.json())
+        .then(data => {
+            const approvedRequestsTable = document.getElementById('approved-requests-table-body');
+            approvedRequestsTable.innerHTML = '';
+            data.forEach(request => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${request.item_name}</td>
+                    <td>${request.quantity}</td>
+                    <td>${request.date_needed}</td>
+                    <td>${request.return_date}</td>
+                `;
+                approvedRequestsTable.appendChild(row);
+            });
+        })
+        .catch(error => console.error('Error fetching approved requests:', error));
+}

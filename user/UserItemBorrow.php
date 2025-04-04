@@ -97,15 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $success = $stmt->execute();
 
     if ($success) {
-        // Deduct the borrowed quantity from the items table
-        $updateItemStmt = $conn->prepare("UPDATE items SET quantity = quantity - ? WHERE item_id = ?");
-        if (!$updateItemStmt) {
-            die('Database error: ' . $conn->error);
-        }
-        $updateItemStmt->bind_param("ii", $quantity, $itemId);
-        $updateItemStmt->execute();
-        $updateItemStmt->close();
-
+        
         // Save transaction history
         $transactionQuery = "INSERT INTO transactions (user_id, action, details, item_id, quantity, status, item_name) VALUES (?, 'Borrow', ?, ?, ?, 'Pending', ?)";
         $transactionStmt = $conn->prepare($transactionQuery);

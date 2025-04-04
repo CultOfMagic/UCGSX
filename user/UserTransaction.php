@@ -97,24 +97,14 @@ $returnedRequestsQuery = "
         return_requests.return_date, 
         return_requests.status 
     FROM return_requests 
-    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.borrow_id -- Replace 'primary_key' with the correct column name
+    JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.borrow_id
     JOIN items ON borrow_requests.item_id = items.item_id 
     WHERE borrow_requests.user_id = ?
     LIMIT ? OFFSET ?
 ";
 $returnedRequestsStmt = $conn->prepare($returnedRequestsQuery);
-if ($returnedRequestsStmt === false) {
-    die("Error preparing returned requests statement: " . $conn->error);
-}
-
-if (!$returnedRequestsStmt->bind_param("iii", $currentUserId, $rowsPerPage, $offset)) {
-    die("Error binding parameters: " . $returnedRequestsStmt->error);
-}
-
-if (!$returnedRequestsStmt->execute()) {
-    die("Error executing statement: " . $returnedRequestsStmt->error);
-}
-
+$returnedRequestsStmt->bind_param("iii", $currentUserId, $rowsPerPage, $offset);
+$returnedRequestsStmt->execute();
 $returnedRequestsResult = $returnedRequestsStmt->get_result();
 $returnedRequestsStmt->close();
 
