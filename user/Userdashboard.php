@@ -65,14 +65,21 @@ $role = htmlspecialchars($currentUser['role']);
 $ministry = htmlspecialchars($currentUser['ministry']);
 $status = htmlspecialchars($currentUser['status']);
 
-// Updated functions using mysqli consistently
+// Count all pending requests (borrow, new item, and return)
 function getPendingRequestsCount($mysqli, $userId) {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM user_requests WHERE user_id = ? AND status = 'Pending'");
+    $query = "SELECT 
+                (SELECT COUNT(*) FROM borrow_requests WHERE user_id = ? AND status = 'Pending') +
+                (SELECT COUNT(*) FROM new_item_requests WHERE user_id = ? AND status = 'Pending') +
+                (SELECT COUNT(*) FROM return_requests 
+                 JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.borrow_id 
+                 WHERE borrow_requests.user_id = ? AND return_requests.status = 'Pending') AS total_pending";
+    
+    $stmt = $mysqli->prepare($query);
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return 0;
     }
-    $stmt->bind_param("i", $userId);
+    $stmt->bind_param("iii", $userId, $userId, $userId);
     $stmt->execute();
     $stmt->bind_result($count);
     $stmt->fetch();
@@ -80,8 +87,12 @@ function getPendingRequestsCount($mysqli, $userId) {
     return $count;
 }
 
+// Count borrowed items from borrowed_items table
 function getBorrowedItemsCount($mysqli, $userId) {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+    $stmt = $mysqli->prepare("SELECT COUNT(*) 
+                             FROM borrowed_items 
+                             WHERE user_id = ? 
+                             AND status = 'Borrowed'");
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return 0;
@@ -94,8 +105,11 @@ function getBorrowedItemsCount($mysqli, $userId) {
     return $count;
 }
 
+// Count recent transactions (last 30 days)
 function getRecentTransactionsCount($mysqli, $userId) {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM transactions WHERE user_id = ?");
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM transactions 
+                             WHERE user_id = ? 
+                             AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return 0;
@@ -108,9 +122,9 @@ function getRecentTransactionsCount($mysqli, $userId) {
     return $count;
 }
 
-// Add a function to get total items count
+// Count total available items
 function getTotalItemsCount($mysqli) {
-    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM items");
+    $stmt = $mysqli->prepare("SELECT COUNT(*) FROM items WHERE status = 'Available'");
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return 0;
@@ -122,9 +136,13 @@ function getTotalItemsCount($mysqli) {
     return $count;
 }
 
-// Add a function to fetch user-specific notifications
+// Fetch user notifications
 function getUserNotifications($mysqli, $userId) {
-    $stmt = $mysqli->prepare("SELECT notification_id, message, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 5");
+    $stmt = $mysqli->prepare("SELECT notification_id, message, created_at 
+                             FROM notifications 
+                             WHERE user_id = ? 
+                             ORDER BY created_at DESC 
+                             LIMIT 5");
     if (!$stmt) {
         error_log("Query preparation failed: " . $mysqli->error);
         return [];
@@ -140,7 +158,7 @@ function getUserNotifications($mysqli, $userId) {
     return $notifications;
 }
 
-// Fetch additional data for the dashboard
+// Fetch dashboard data
 $totalItems = getTotalItemsCount($conn);
 $notifications = getUserNotifications($conn, $userId);
 ?>
@@ -164,7 +182,7 @@ $notifications = getUserNotifications($conn, $userId);
             <div class="right-side">
                 <div class="user">
                     <img src="../assets/img/users.png" alt="User profile" class="icon" id="userIcon">
-                    <span class="user-text"><?php echo htmlspecialchars($accountName); ?></span> <!-- Display logged-in user's username -->
+                    <span class="user-text"><?php echo htmlspecialchars($accountName); ?></span>
                     <div class="user-dropdown" id="userDropdown">
                         <a href="userprofile.php"><img src="../assets/img/updateuser.png" alt="Profile" class="dropdown-icon"> Profile</a>
                         <a href="usernotification.php"><img src="../assets/img/notificationbell.png" alt="Notification Icon" class="dropdown-icon"> Notification</a>
@@ -230,7 +248,7 @@ $notifications = getUserNotifications($conn, $userId);
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Request ID</th>
+                        <th>Request Type</th>
                         <th>Item Name</th>
                         <th>Request Date</th>
                         <th>Status</th>
@@ -238,13 +256,44 @@ $notifications = getUserNotifications($conn, $userId);
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT request_id, item_name, created_at AS request_date, status FROM user_requests WHERE user_id = ? AND status = 'Pending'");
-                    $stmt->bind_param("i", $userId);
+                    $query = "(SELECT 'Borrow' AS request_type, 
+                                     items.item_name, 
+                                     borrow_requests.request_date, 
+                                     borrow_requests.status 
+                              FROM borrow_requests 
+                              JOIN items ON borrow_requests.item_id = items.item_id 
+                              WHERE borrow_requests.user_id = ? AND borrow_requests.status = 'Pending')
+                              
+                              UNION ALL
+                              
+                              (SELECT 'New Item' AS request_type, 
+                                      item_name, 
+                                      request_date, 
+                                      status 
+                               FROM new_item_requests 
+                               WHERE user_id = ? AND status = 'Pending')
+                              
+                              UNION ALL
+                              
+                              (SELECT 'Return' AS request_type, 
+                                      items.item_name, 
+                                      return_requests.created_at AS request_date, 
+                                      return_requests.status 
+                               FROM return_requests 
+                               JOIN borrow_requests ON return_requests.borrow_id = borrow_requests.borrow_id 
+                               JOIN items ON borrow_requests.item_id = items.item_id 
+                               WHERE borrow_requests.user_id = ? AND return_requests.status = 'Pending')
+                              
+                              ORDER BY request_date DESC";
+                    
+                    $stmt = $conn->prepare($query);
+                    $stmt->bind_param("iii", $userId, $userId, $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
+                    
                     while ($row = $result->fetch_assoc()) {
                         echo "<tr>
-                                <td>" . htmlspecialchars($row['request_id']) . "</td>
+                                <td>" . htmlspecialchars($row['request_type']) . "</td>
                                 <td>" . htmlspecialchars($row['item_name']) . "</td>
                                 <td>" . htmlspecialchars($row['request_date']) . "</td>
                                 <td>" . htmlspecialchars($row['status']) . "</td>
@@ -261,24 +310,32 @@ $notifications = getUserNotifications($conn, $userId);
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Item ID</th>
+                        <th>Borrow ID</th>
                         <th>Item Name</th>
                         <th>Borrow Date</th>
-                        <th>Return Date</th>
+                        <th>Expected Return</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT borrow_id AS item_id, item_id AS item_name, borrow_date, actual_return_date FROM borrowed_items WHERE user_id = ? AND status = 'Borrowed'");
+                    $stmt = $conn->prepare("SELECT bi.borrow_id, 
+                                                  i.item_name, 
+                                                  bi.borrow_date, 
+                                                  br.return_date AS expected_return
+                                           FROM borrowed_items bi
+                                           JOIN borrow_requests br ON bi.request_id = br.borrow_id
+                                           JOIN items i ON bi.item_id = i.item_id
+                                           WHERE bi.user_id = ? 
+                                           AND bi.status = 'Borrowed'");
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
                     while ($row = $result->fetch_assoc()) {
                         echo "<tr>
-                                <td>" . htmlspecialchars($row['item_id']) . "</td>
+                                <td>" . htmlspecialchars($row['borrow_id']) . "</td>
                                 <td>" . htmlspecialchars($row['item_name']) . "</td>
                                 <td>" . htmlspecialchars($row['borrow_date']) . "</td>
-                                <td>" . htmlspecialchars($row['actual_return_date']) . "</td>
+                                <td>" . htmlspecialchars($row['expected_return']) . "</td>
                               </tr>";
                     }
                     $stmt->close();
@@ -293,19 +350,28 @@ $notifications = getUserNotifications($conn, $userId);
                 <thead>
                     <tr>
                         <th>Transaction ID</th>
+                        <th>Action</th>
                         <th>Details</th>
                         <th>Date</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php
-                    $stmt = $conn->prepare("SELECT transaction_id, details, created_at FROM transactions WHERE user_id = ?");
+                    $stmt = $conn->prepare("SELECT transaction_id, 
+                                                  action, 
+                                                  details, 
+                                                  created_at 
+                                           FROM transactions 
+                                           WHERE user_id = ? 
+                                           ORDER BY created_at DESC 
+                                           LIMIT 10");
                     $stmt->bind_param("i", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
                     while ($row = $result->fetch_assoc()) {
                         echo "<tr>
                                 <td>" . htmlspecialchars($row['transaction_id']) . "</td>
+                                <td>" . htmlspecialchars($row['action']) . "</td>
                                 <td>" . htmlspecialchars($row['details']) . "</td>
                                 <td>" . htmlspecialchars($row['created_at']) . "</td>
                               </tr>";
@@ -345,6 +411,6 @@ $notifications = getUserNotifications($conn, $userId);
 </html>
 
 <?php
-// Close database connection (moved to the end of the script)
+// Close database connection
 $conn->close();
 ?>
