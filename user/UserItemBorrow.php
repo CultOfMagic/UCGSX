@@ -125,7 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         die('Failed to submit the request: ' . $stmt->error);
     }
-    $stmt->close();
 } 
 
 // Fetch items based on category for dynamic population
