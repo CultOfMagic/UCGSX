@@ -254,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <th>Username</th>
             <th>Requested Item</th>
             <th>Item Category</th>
-            <th>Purpose/th>
+            <th>Purpose</th>
             <th>Request Date</th>
             <th>Quantity</th>
             <th>Status</th>
@@ -304,7 +304,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </div>
 
-    <script>
+<script src="../js/Itmreqs.js"></script>
+<script>
 document.addEventListener("DOMContentLoaded", function () {
     const approveButtons = document.querySelectorAll(".approve-btn");
     const rejectButtons = document.querySelectorAll(".reject-btn");
