@@ -254,7 +254,7 @@ if (isset($_GET['download'])) {
         <table class="report-table">
     <thead>
         <tr>
-            <th>Select</th>
+            <th>Select All <input type="checkbox" class="select-all" onclick="toggleSelectAll(this)"></th>
             <th>Item No</th>
             <th>Last Updated</th>
             <th>Model No</th>
