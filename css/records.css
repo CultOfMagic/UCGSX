@@ -571,6 +571,17 @@ body {
     font-size: 14px; /* Slightly smaller font size */
 }
 
+#create-Item-modal .modal-content,
+#updateModal .modal-content {
+  -ms-overflow-style: none;
+  scrollbar-width: none; 
+}
+
+#create-Item-modal .modal-content::-webkit-scrollbar,
+#updateModal .modal-content::-webkit-scrollbar {
+  display: none; 
+}
+
 /* Fade-in Animation */
 @keyframes fadeIn {
     from {
